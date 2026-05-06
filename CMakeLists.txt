@@ -42,10 +42,7 @@ FetchContent_Declare(
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     TIMEOUT 30
 )
-FetchContent_GetProperties(tray)
-if(NOT tray_POPULATED)
-    FetchContent_Populate(tray)
-endif()
+FetchContent_MakeAvailable(tray)
 set(TRAY_INCLUDE_DIR "${tray_SOURCE_DIR}")
 
 find_package(OpenGL REQUIRED)
@@ -86,6 +83,7 @@ function(configure_opengl_app target_name)
     target_link_libraries(${target_name} PRIVATE glfw glad OpenGL::GL)
 
     if(MSVC)
+        set_target_properties(${target_name} PROPERTIES VS_GLOBAL_VcpkgXUseBuiltInApplocalDeps true)
         target_compile_options(${target_name} PRIVATE $<$<NOT:$<CONFIG:Debug>>:/O1> /GS- /sdl-)
         target_link_options(${target_name} PRIVATE /OPT:REF /OPT:ICF /ENTRY:mainCRTStartup /SUBSYSTEM:WINDOWS)
     elseif(APPLE)

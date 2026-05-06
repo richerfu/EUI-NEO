@@ -20,7 +20,16 @@
 #define objc_msgSend ((id (*)(id, SEL, ...))objc_msgSend)
 #endif
 
+#if defined(_MSC_VER) && defined(EUI_TRAY_WINAPI)
+#pragma warning(push)
+#pragma warning(disable : 4244)
+#endif
+
 #include "tray.h"
+
+#if defined(_MSC_VER) && defined(EUI_TRAY_WINAPI)
+#pragma warning(pop)
+#endif
 
 #if defined(EUI_TRAY_APPKIT)
 #undef objc_msgSend
