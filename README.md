@@ -73,6 +73,7 @@ docs/         Implementation notes and API documentation
 - [Rendering Pipeline](docs/渲染流程.md)
 - [Images](docs/图片.md)
 - [Network](docs/网络.md)
+- [Platform Capabilities](docs/平台能力.md)
 - [Window And Pages](docs/窗口页面.md)
 
 ## Current Components

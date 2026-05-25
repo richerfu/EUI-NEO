@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 struct GLFWwindow;
 
@@ -11,7 +12,34 @@ struct TrayOptions {
     std::string iconPath;
 };
 
+struct FileDialogOptions {
+    std::string prompt;
+    std::vector<std::string> allowedExtensions;
+    std::string initialDirectory;
+    std::string filterName;
+    bool allowMultiple = false;
+};
+
+enum class FileDialogStatus {
+    Selected,
+    Cancelled,
+    Failed
+};
+
+struct FileDialogResult {
+    FileDialogStatus status = FileDialogStatus::Cancelled;
+    std::vector<std::string> paths;
+    std::string error;
+
+    bool selected() const {
+        return status == FileDialogStatus::Selected && !paths.empty();
+    }
+};
+
 bool openUrl(const std::string& url);
+FileDialogResult openFileDialog(const FileDialogOptions& options = {});
+std::string chooseFile(const FileDialogOptions& options = {});
+std::vector<std::string> chooseFiles(const FileDialogOptions& options = {});
 bool initializeTray(const TrayOptions& options);
 bool isTrayInitialized();
 void pollTray(bool blocking = false);

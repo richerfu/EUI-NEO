@@ -28,6 +28,7 @@ Before making substantial changes, read only the docs relevant to the request:
 - App/page work: [窗口页面.md](窗口页面.md), [DSL.md](DSL.md), [布局.md](布局.md), [事件.md](事件.md)
 - Component work: [组件.md](组件.md), [DSL.md](DSL.md), [事件.md](事件.md), [布局.md](布局.md)
 - Async/network work: [异步.md](异步.md), [网络.md](网络.md)
+- Platform integration work: [平台能力.md](平台能力.md)
 - Visual/rendering edge cases: [动画.md](动画.md), [渲染流程.md](渲染流程.md), [图片.md](图片.md), [基础图元文本图元.md](基础图元文本图元.md)
 
 Do not bulk-load all docs unless the task truly spans multiple layers.
@@ -54,6 +55,9 @@ Do not write code as if this were an immediate-mode raw OpenGL app. The DSL is t
 - Do not bypass Runtime by reading raw GLFW mouse state in app/component code.
 - Do not create a second rendering abstraction beside the DSL.
 - Prefer editing `app/` and `components/` first. Touch `core/` only when the task truly requires new framework capability.
+- `core/` naming must stay generic. Do not introduce business-specific names like `chooseMediaFile` in platform/runtime/core APIs when the real capability is generic file selection, process launch, etc.
+- If a capability is generic but one app uses it for a specific scenario, keep the generic API in `core/` and let the app supply business-specific options or wrappers.
+- Default app state should be honest. Do not pre-populate fake/demo/business data unless the user explicitly asks for seeded sample content.
 
 ## Repository Map
 
@@ -152,6 +156,11 @@ Avoid these mistakes:
 - `flow` is the default choice for responsive button groups, chip rows, picker rows, and property-card grids. Do not manually wrap rows with ad-hoc `if (x > width)` math in app code.
 - Use `padding(...)` for container insets first. Do not create extra wrapper layers or hand-subtract inner widths unless the component API truly requires it.
 - Use `minWidth/maxWidth/flexGrow/flexShrink` to express responsive intent before writing repeated `std::min/std::max` width formulas in pages.
+- When mixing a large preview/stage area with bottom controls, budget the vertical space explicitly. Do not let a preview region consume the remaining height and accidentally push controls outside the panel.
+- For list rows and sidebars, check both text width and total content height. Titles, subtitles, badges, and trailing actions often overflow if the card height was chosen before the final content was known.
+- Empty states should stay minimal. Do not leave decorative placeholder cards, ghost boxes, or demo chrome unless the user asked for them.
+- Avoid decorative backgrounds by default. Do not add glows, floating circles, random gradients, or oversized blur blobs unless the user asked for a more expressive visual direction.
+- Prefer the project’s default/system-like text presentation for utility apps. Do not switch to a novelty/custom font unless the task explicitly benefits from it or the existing app already established that style.
 
 ## DSL Rules That Matter In Practice
 
@@ -267,6 +276,8 @@ After changes:
 3. Confirm new component headers are exported from `components/components.h` if needed.
 4. Build the affected app target.
 5. If the change is visual or interactive, run the target and inspect the actual UI behavior.
+6. For any sidebar, toolbar, bottom action row, or preview panel, explicitly verify that no content overflows its container at the intended window size.
+7. If the user requested simplification, verify that no leftover sample data, decorative placeholder UI, or extra panels remain in the final page.
 
 Build commands:
 
