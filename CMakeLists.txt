@@ -127,6 +127,7 @@ else()
 endif()
 
 find_package(OpenGL REQUIRED)
+find_package(Threads REQUIRED)
 if(NOT WIN32)
     find_package(CURL REQUIRED)
 else()
@@ -168,7 +169,7 @@ endif()
 
 function(configure_opengl_app target_name)
     target_include_directories(${target_name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${TRAY_INCLUDE_DIR})
-    target_link_libraries(${target_name} PRIVATE glfw glad OpenGL::GL)
+    target_link_libraries(${target_name} PRIVATE glfw glad OpenGL::GL Threads::Threads)
 
     if(MSVC)
         set_target_properties(${target_name} PROPERTIES VS_GLOBAL_VcpkgXUseBuiltInApplocalDeps true)
