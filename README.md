@@ -101,11 +101,12 @@ docs/         Implementation notes and API documentation
 `components/components.h` exports the current component layer:
 
 - Basic wrappers: `panel`, `text` / `label`, `image`, `theme`
-- Controls: `button`, `checkbox`, `radio`, `toggleSwitch`, `progress`, `slider`, `input`, `segmented`, `stepper`, `tabs`, `scroll`
+- Controls: `button`, `checkbox`, `radio`, `toggleSwitch`, `progress`, `slider`, `input`, `segmented`, `stepper`, `tabs`, `scroll`, `scrollView`
 - Popups and feedback: `dialog`, `toast`, `contextMenu`, `dropdown`
 - Pickers: `datepicker`, `timepicker`, `colorpicker`
-- Data display: `dataTable` / `datatable`
-- Charts: `linechart` / `lineChart`, `barchart` / `barChart`, `piechart` / `pieChart`
+- Data display: `dataTable` (`datatable` alias), `carousel`
+- Charts: `linechart` (`lineChart` alias), `barchart` (`barChart` alias), `piechart` (`pieChart` alias)
+- Input areas: `mouseArea`
 
 Components only compose DSL trees. They do not own OpenGL primitives directly. Business state stays in the page or application layer: pass the current value into the builder, then write the next value back from callbacks.
 

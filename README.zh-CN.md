@@ -101,11 +101,12 @@ docs/         项目实现文档
 `components/components.h` 聚合导出当前组件层：
 
 - 基础包装：`panel`、`text` / `label`、`image`、`theme`
-- 控件：`button`、`checkbox`、`radio`、`toggleSwitch`、`progress`、`slider`、`input`、`segmented`、`stepper`、`tabs`、`scroll`
+- 控件：`button`、`checkbox`、`radio`、`toggleSwitch`、`progress`、`slider`、`input`、`segmented`、`stepper`、`tabs`、`scroll`、`scrollView`
 - 弹层和反馈：`dialog`、`toast`、`contextMenu`、`dropdown`
 - 选择器：`datepicker`、`timepicker`、`colorpicker`
-- 数据展示：`dataTable` / `datatable`
-- 图表：`linechart` / `lineChart`、`barchart` / `barChart`、`piechart` / `pieChart`
+- 数据展示：`dataTable`（`datatable` 兼容别名）、`carousel`
+- 图表：`linechart`（`lineChart` 兼容别名）、`barchart`（`barChart` 兼容别名）、`piechart`（`pieChart` 兼容别名）
+- 输入热区：`mouseArea`
 
 组件只组合 DSL 树，不直接持有 OpenGL primitive。业务状态仍然放在页面或业务层，通过 builder 参数传入当前值，再从回调写回 next value。
 

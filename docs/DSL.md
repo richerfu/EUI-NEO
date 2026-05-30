@@ -346,13 +346,13 @@ Frame 动画需要显式 `.animate(core::AnimProperty::Frame)`。窗口大小变
 - `components::datepicker(ui, id)`：dialog 式日期选择器，页面传 date/open，面板内调整是 draft，点击 `Done` 后才回调 next date。
 - `components::timepicker(ui, id)`：dialog 式时间选择器，页面传 time/open，面板内调整是 draft，点击 `Done` 后才回调 next time。
 - `components::colorpicker(ui, id)`：dialog 式颜色选择器，页面传 color/open，RGB slider 和色块只改 draft，点击 `Done` 后才回调 next color。
-- `components::dataTable(ui, id)` / `components::datatable(ui, id)`：简单数据表。
+- `components::dataTable(ui, id)`：简单数据表，`components::datatable(ui, id)` 是兼容别名。
 - `components::dialog(ui, id)`：模态对话框，页面传 open 状态。
 - `components::toast(ui, id)`：toast 提示，支持 duration / autoDismiss。
 - `components::contextMenu(ui, id)`：右键菜单，支持 position、screen、items、dismiss。
-- `components::linechart(ui, id)` / `components::lineChart(ui, id)`：折线图，hover 数据点显示 tooltip。
-- `components::barchart(ui, id)` / `components::barChart(ui, id)`：柱状图，hover 柱子显示 tooltip。
-- `components::piechart(ui, id)` / `components::pieChart(ui, id)`：饼图，用 `Polygon` 绘制扇区，hover 扇区显示 tooltip。
+- `components::linechart(ui, id)`：折线图，hover 数据点显示 tooltip，`components::lineChart(ui, id)` 是兼容别名。
+- `components::barchart(ui, id)`：柱状图，hover 柱子显示 tooltip，`components::barChart(ui, id)` 是兼容别名。
+- `components::piechart(ui, id)`：饼图，用 `Polygon` 绘制扇区，hover 扇区显示 tooltip，`components::pieChart(ui, id)` 是兼容别名。
 
 按钮示例：
 
