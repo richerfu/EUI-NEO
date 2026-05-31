@@ -1079,7 +1079,101 @@ std::vector<unsigned char> copyBgraBitmapAsRgba(const FT_Bitmap& bitmap) {
 
 } // namespace
 
-bool TextPrimitive::initialize() {
+struct TextPrimitive::Impl {
+    struct LaidOutGlyph {
+        Glyph glyph;
+        float x = 0.0f;
+        float y = 0.0f;
+    };
+
+    struct Line {
+        std::vector<LaidOutGlyph> glyphs;
+        float width = 0.0f;
+    };
+
+    Impl() = default;
+    Impl(float x, float y) : position_{x, y} {}
+
+    bool initialize();
+    void destroy();
+
+    void setPosition(float x, float y);
+    void setText(const std::string& text);
+    void setFontFamily(const std::string& fontFamily);
+    void setFontSize(float fontSize);
+    void setFontWeight(int fontWeight);
+    void setColor(const Color& color);
+    void setMaxWidth(float maxWidth);
+    void setWrap(bool wrap);
+    void setHorizontalAlign(HorizontalAlign align);
+    void setVerticalAlign(VerticalAlign align);
+    void setLineHeight(float lineHeight);
+    void setStyle(const TextStyle& style);
+    void setVisualScale(float originX, float originY, float scale);
+    void setTransform(const Transform& transform, const Rect& frame);
+    void setTransformMatrix(const TransformMatrix& matrix);
+
+    const TextStyle& style() const;
+    Vec2 position() const;
+    Vec2 measuredSize();
+    static float measureTextWidth(const std::string& text,
+                                  const std::string& fontFamily = {},
+                                  float fontSize = 16.0f,
+                                  int fontWeight = 400);
+    static TextMetrics measureTextMetrics(const std::string& text,
+                                          const std::string& fontFamily = {},
+                                          float fontSize = 16.0f,
+                                          int fontWeight = 400);
+    static void setDefaultFontFiles(const std::string& textFontFile, const std::string& iconFontFile);
+
+    void render(int windowWidth, int windowHeight);
+
+    bool loadFont();
+    bool ensureGlyph(const ShapedGlyph& shaped);
+    Glyph* findGlyph(std::uint64_t key);
+    void cacheGlyph(std::uint64_t key, const Glyph& glyph);
+    void invalidateLayout();
+    void invalidateVertices();
+    void rebuildLayout();
+    void rebuildVertices();
+    std::vector<ShapedGlyph> shapeText(const std::string& text);
+    void appendShapedGlyphToLine(Line& line, const ShapedGlyph& shaped, float& cursorX);
+
+    static unsigned int readCodepoint(const std::string& text, size_t& index);
+    static std::string resolveFontPath(const std::string& fontFamily, int fontWeight);
+
+    Vec2 position_;
+    Vec2 visualScaleOrigin_;
+    float visualScale_ = 1.0f;
+    Transform transform_;
+    Rect transformFrame_;
+    TransformMatrix transformMatrix_;
+    bool hasTransformMatrix_ = false;
+    TextStyle style_;
+    std::shared_ptr<void> fontInfoStorage_;
+    float scale_ = 1.0f;
+    float ascent_ = 0.0f;
+    float descent_ = 0.0f;
+    float lineGap_ = 0.0f;
+
+    std::unordered_map<std::uint64_t, Glyph> glyphs_;
+
+    std::vector<Line> lines_;
+    std::vector<float> vertices_;
+    Vec2 measuredSize_;
+    bool layoutDirty_ = true;
+    bool verticesDirty_ = true;
+    bool fontDirty_ = true;
+
+    GLuint vao_ = 0;
+    GLuint vbo_ = 0;
+    GLuint shaderProgram_ = 0;
+    GLint windowSizeLocation_ = -1;
+    GLint colorLocation_ = -1;
+    GLint textureLocation_ = -1;
+};
+
+bool TextPrimitive::Impl::initialize() {
     if (!retainSharedTextRenderResources()) {
         return false;
     }
@@ -1099,7 +1193,7 @@ bool TextPrimitive::initialize() {
     return true;
 }
 
-void TextPrimitive::destroy() {
+void TextPrimitive::Impl::destroy() {
     if (shaderProgram_) {
         releaseSharedTextAtlas();
         releaseSharedTextRenderResources();
@@ -1120,7 +1214,7 @@ void TextPrimitive::destroy() {
     fontDirty_ = true;
 }
 
-void TextPrimitive::setPosition(float x, float y) {
+void TextPrimitive::Impl::setPosition(float x, float y) {
     if (position_.x == x && position_.y == y) {
         return;
     }
@@ -1128,7 +1222,7 @@ void TextPrimitive::setPosition(float x, float y) {
     invalidateVertices();
 }
 
-void TextPrimitive::setText(const std::string& text) {
+void TextPrimitive::Impl::setText(const std::string& text) {
     if (style_.text == text) {
         return;
     }
@@ -1136,7 +1230,7 @@ void TextPrimitive::setText(const std::string& text) {
     invalidateLayout();
 }
 
-void TextPrimitive::setFontFamily(const std::string& fontFamily) {
+void TextPrimitive::Impl::setFontFamily(const std::string& fontFamily) {
     if (style_.fontFamily == fontFamily) {
         return;
     }
@@ -1145,7 +1239,7 @@ void TextPrimitive::setFontFamily(const std::string& fontFamily) {
     invalidateLayout();
 }
 
-void TextPrimitive::setFontSize(float fontSize) {
+void TextPrimitive::Impl::setFontSize(float fontSize) {
     if (style_.fontSize == fontSize) {
         return;
     }
@@ -1154,7 +1248,7 @@ void TextPrimitive::setFontSize(float fontSize) {
     invalidateLayout();
 }
 
-void TextPrimitive::setFontWeight(int fontWeight) {
+void TextPrimitive::Impl::setFontWeight(int fontWeight) {
     if (style_.fontWeight == fontWeight) {
         return;
     }
@@ -1163,11 +1257,11 @@ void TextPrimitive::setFontWeight(int fontWeight) {
     invalidateLayout();
 }
 
-void TextPrimitive::setColor(const Color& color) {
+void TextPrimitive::Impl::setColor(const Color& color) {
     style_.color = color;
 }
 
-void TextPrimitive::setMaxWidth(float maxWidth) {
+void TextPrimitive::Impl::setMaxWidth(float maxWidth) {
     if (style_.maxWidth == maxWidth) {
         return;
     }
@@ -1175,7 +1269,7 @@ void TextPrimitive::setMaxWidth(float maxWidth) {
     invalidateLayout();
 }
 
-void TextPrimitive::setWrap(bool wrap) {
+void TextPrimitive::Impl::setWrap(bool wrap) {
     if (style_.wrap == wrap) {
         return;
     }
@@ -1183,7 +1277,7 @@ void TextPrimitive::setWrap(bool wrap) {
     invalidateLayout();
 }
 
-void TextPrimitive::setHorizontalAlign(HorizontalAlign align) {
+void TextPrimitive::Impl::setHorizontalAlign(HorizontalAlign align) {
     if (style_.horizontalAlign == align) {
         return;
     }
@@ -1191,7 +1285,7 @@ void TextPrimitive::setHorizontalAlign(HorizontalAlign align) {
     invalidateVertices();
 }
 
-void TextPrimitive::setVerticalAlign(VerticalAlign align) {
+void TextPrimitive::Impl::setVerticalAlign(VerticalAlign align) {
     if (style_.verticalAlign == align) {
         return;
     }
@@ -1199,7 +1293,7 @@ void TextPrimitive::setVerticalAlign(VerticalAlign align) {
     invalidateVertices();
 }
 
-void TextPrimitive::setLineHeight(float lineHeight) {
+void TextPrimitive::Impl::setLineHeight(float lineHeight) {
     if (style_.lineHeight == lineHeight) {
         return;
     }
@@ -1207,7 +1301,7 @@ void TextPrimitive::setLineHeight(float lineHeight) {
     invalidateLayout();
 }
 
-void TextPrimitive::setVisualScale(float originX, float originY, float scale) {
+void TextPrimitive::Impl::setVisualScale(float originX, float originY, float scale) {
     const float nextScale = std::max(0.01f, scale);
     if (visualScaleOrigin_.x == originX && visualScaleOrigin_.y == originY && visualScale_ == nextScale) {
         return;
@@ -1217,7 +1311,7 @@ void TextPrimitive::setVisualScale(float originX, float originY, float scale) {
     invalidateVertices();
 }
 
-void TextPrimitive::setTransform(const Transform& transform, const Rect& frame) {
+void TextPrimitive::Impl::setTransform(const Transform& transform, const Rect& frame) {
     auto close = [](float left, float right) {
         return std::fabs(left - right) <= 0.0001f;
     };
@@ -1247,7 +1341,7 @@ void TextPrimitive::setTransform(const Transform& transform, const Rect& frame) 
     invalidateVertices();
 }
 
-void TextPrimitive::setTransformMatrix(const TransformMatrix& matrix) {
+void TextPrimitive::Impl::setTransformMatrix(const TransformMatrix& matrix) {
     auto close = [](float left, float right) {
         return std::fabs(left - right) <= 0.0001f;
     };
@@ -1270,7 +1364,7 @@ void TextPrimitive::setTransformMatrix(const TransformMatrix& matrix) {
     invalidateVertices();
 }
 
-void TextPrimitive::setStyle(const TextStyle& style) {
+void TextPrimitive::Impl::setStyle(const TextStyle& style) {
     const bool fontChanged = style.fontFamily != style_.fontFamily ||
                              style.fontSize != style_.fontSize ||
                              style.fontWeight != style_.fontWeight;
@@ -1279,29 +1373,29 @@ void TextPrimitive::setStyle(const TextStyle& style) {
     invalidateLayout();
 }
 
-const TextStyle& TextPrimitive::style() const {
+const TextStyle& TextPrimitive::Impl::style() const {
     return style_;
 }
 
-Vec2 TextPrimitive::position() const {
+Vec2 TextPrimitive::Impl::position() const {
     return position_;
 }
 
-Vec2 TextPrimitive::measuredSize() {
+Vec2 TextPrimitive::Impl::measuredSize() {
     if (layoutDirty_) {
         rebuildLayout();
     }
     return measuredSize_;
 }
 
-float TextPrimitive::measureTextWidth(const std::string& text,
+float TextPrimitive::Impl::measureTextWidth(const std::string& text,
                                       const std::string& fontFamily,
                                       float fontSize,
                                       int fontWeight) {
     return measureTextMetrics(text, fontFamily, fontSize, fontWeight).width;
 }
 
-TextPrimitive::TextMetrics TextPrimitive::measureTextMetrics(const std::string& text,
+TextPrimitive::TextMetrics TextPrimitive::Impl::measureTextMetrics(const std::string& text,
                                                              const std::string& fontFamily,
                                                              float fontSize,
                                                              int fontWeight) {
@@ -1322,12 +1416,12 @@ TextPrimitive::TextMetrics TextPrimitive::measureTextMetrics(const std::string& 
     return makeTextMetrics(text, shapeTextWithFontStack(*holder, text, size));
 }
 
-void TextPrimitive::setDefaultFontFiles(const std::string& textFontFile, const std::string& iconFontFile) {
+void TextPrimitive::Impl::setDefaultFontFiles(const std::string& textFontFile, const std::string& iconFontFile) {
     defaultUiFontFileOverride() = textFontFile;
     defaultIconFontFileOverride() = iconFontFile;
 }
 
-void TextPrimitive::render(int windowWidth, int windowHeight) {
+void TextPrimitive::Impl::render(int windowWidth, int windowHeight) {
     if (!shaderProgram_ || !vao_ || !vbo_) {
         return;
     }
@@ -1378,7 +1472,7 @@ void TextPrimitive::render(int windowWidth, int windowHeight) {
     }
 }
 
-bool TextPrimitive::loadFont() {
+bool TextPrimitive::Impl::loadFont() {
     const std::string fontPath = resolveFontPath(style_.fontFamily, style_.fontWeight);
     auto holder = loadSharedFontStack(fontPath, style_.fontSize);
     if (!holder || holder->faces.empty()) {
@@ -1397,7 +1491,7 @@ bool TextPrimitive::loadFont() {
     return true;
 }
 
-bool TextPrimitive::ensureGlyph(const ShapedGlyph& shaped) {
+bool TextPrimitive::Impl::ensureGlyph(const ShapedGlyph& shaped) {
     if (shaped.key == 0) {
         return true;
     }
@@ -1506,24 +1600,24 @@ bool TextPrimitive::ensureGlyph(const ShapedGlyph& shaped) {
     return true;
 }
 
-TextPrimitive::Glyph* TextPrimitive::findGlyph(std::uint64_t key) {
+TextPrimitive::Glyph* TextPrimitive::Impl::findGlyph(std::uint64_t key) {
     const auto it = glyphs_.find(key);
     return it == glyphs_.end() ? nullptr : &it->second;
 }
 
-void TextPrimitive::cacheGlyph(std::uint64_t key, const Glyph& glyph) {
+void TextPrimitive::Impl::cacheGlyph(std::uint64_t key, const Glyph& glyph) {
     if (key == 0) {
         return;
     }
     glyphs_[key] = glyph;
 }
 
-void TextPrimitive::invalidateLayout() {
+void TextPrimitive::Impl::invalidateLayout() {
     layoutDirty_ = true;
     invalidateVertices();
 }
 
-void TextPrimitive::rebuildLayout() {
+void TextPrimitive::Impl::rebuildLayout() {
     if (fontDirty_ && !loadFont()) {
         layoutDirty_ = false;
         return;
@@ -1577,11 +1671,11 @@ void TextPrimitive::rebuildLayout() {
     invalidateVertices();
 }
 
-void TextPrimitive::invalidateVertices() {
+void TextPrimitive::Impl::invalidateVertices() {
     verticesDirty_ = true;
 }
 
-void TextPrimitive::rebuildVertices() {
+void TextPrimitive::Impl::rebuildVertices() {
     vertices_.clear();
     const float lineHeight = style_.lineHeight > 0.0f ? style_.lineHeight : style_.fontSize * 1.2f;
     float blockYOffset = 0.0f;
@@ -1669,7 +1763,7 @@ void TextPrimitive::rebuildVertices() {
     verticesDirty_ = false;
 }
 
-std::vector<TextPrimitive::ShapedGlyph> TextPrimitive::shapeText(const std::string& text) {
+std::vector<TextPrimitive::ShapedGlyph> TextPrimitive::Impl::shapeText(const std::string& text) {
     if (fontDirty_ && !loadFont()) {
         return {};
     }
@@ -1680,7 +1774,7 @@ std::vector<TextPrimitive::ShapedGlyph> TextPrimitive::shapeText(const std::stri
     return shapeTextWithFontStack(*holder, text, std::max(1.0f, style_.fontSize));
 }
 
-void TextPrimitive::appendShapedGlyphToLine(Line& line, const ShapedGlyph& shaped, float& cursorX) {
+void TextPrimitive::Impl::appendShapedGlyphToLine(Line& line, const ShapedGlyph& shaped, float& cursorX) {
     if (!ensureGlyph(shaped)) {
         cursorX += shaped.advance;
         line.width = cursorX;
@@ -1695,11 +1789,11 @@ void TextPrimitive::appendShapedGlyphToLine(Line& line, const ShapedGlyph& shape
     line.width = cursorX;
 }
 
-unsigned int TextPrimitive::readCodepoint(const std::string& text, size_t& index) {
+unsigned int TextPrimitive::Impl::readCodepoint(const std::string& text, size_t& index) {
     return readUtf8Codepoint(text, index);
 }
 
-std::string TextPrimitive::resolveFontPath(const std::string& fontFamily, int fontWeight) {
+std::string TextPrimitive::Impl::resolveFontPath(const std::string& fontFamily, int fontWeight) {
     if (!fontFamily.empty() && fontFamily.find('.') != std::string::npos) {
         return resolveFontFilePath(fontFamily);
     }
@@ -1789,5 +1883,52 @@ std::string TextPrimitive::resolveFontPath(const std::string& fontFamily, int fo
     return resolveDefaultUiFontPath();
 #endif
 }
+
+TextPrimitive::TextPrimitive()
+    : impl_(std::make_unique<Impl>()) {}
+
+TextPrimitive::TextPrimitive(float x, float y)
+    : impl_(std::make_unique<Impl>(x, y)) {}
+
+TextPrimitive::~TextPrimitive() = default;
+TextPrimitive::TextPrimitive(TextPrimitive&&) noexcept = default;
+TextPrimitive& TextPrimitive::operator=(TextPrimitive&&) noexcept = default;
+
+bool TextPrimitive::initialize() { return impl_->initialize(); }
+void TextPrimitive::destroy() { impl_->destroy(); }
+void TextPrimitive::setPosition(float x, float y) { impl_->setPosition(x, y); }
+void TextPrimitive::setText(const std::string& text) { impl_->setText(text); }
+void TextPrimitive::setFontFamily(const std::string& fontFamily) { impl_->setFontFamily(fontFamily); }
+void TextPrimitive::setFontSize(float fontSize) { impl_->setFontSize(fontSize); }
+void TextPrimitive::setFontWeight(int fontWeight) { impl_->setFontWeight(fontWeight); }
+void TextPrimitive::setColor(const Color& color) { impl_->setColor(color); }
+void TextPrimitive::setMaxWidth(float maxWidth) { impl_->setMaxWidth(maxWidth); }
+void TextPrimitive::setWrap(bool wrap) { impl_->setWrap(wrap); }
+void TextPrimitive::setHorizontalAlign(HorizontalAlign align) { impl_->setHorizontalAlign(align); }
+void TextPrimitive::setVerticalAlign(VerticalAlign align) { impl_->setVerticalAlign(align); }
+void TextPrimitive::setLineHeight(float lineHeight) { impl_->setLineHeight(lineHeight); }
+void TextPrimitive::setStyle(const TextStyle& style) { impl_->setStyle(style); }
+void TextPrimitive::setVisualScale(float originX, float originY, float scale) { impl_->setVisualScale(originX, originY, scale); }
+void TextPrimitive::setTransform(const Transform& transform, const Rect& frame) { impl_->setTransform(transform, frame); }
+void TextPrimitive::setTransformMatrix(const TransformMatrix& matrix) { impl_->setTransformMatrix(matrix); }
+const TextStyle& TextPrimitive::style() const { return impl_->style(); }
+Vec2 TextPrimitive::position() const { return impl_->position(); }
+Vec2 TextPrimitive::measuredSize() { return impl_->measuredSize(); }
+float TextPrimitive::measureTextWidth(const std::string& text,
+                                      const std::string& fontFamily,
+                                      float fontSize,
+                                      int fontWeight) {
+    return Impl::measureTextWidth(text, fontFamily, fontSize, fontWeight);
+}
+TextPrimitive::TextMetrics TextPrimitive::measureTextMetrics(const std::string& text,
+                                                             const std::string& fontFamily,
+                                                             float fontSize,
+                                                             int fontWeight) {
+    return Impl::measureTextMetrics(text, fontFamily, fontSize, fontWeight);
+}
+void TextPrimitive::setDefaultFontFiles(const std::string& textFontFile, const std::string& iconFontFile) {
+    Impl::setDefaultFontFiles(textFontFile, iconFontFile);
+}
+void TextPrimitive::render(int windowWidth, int windowHeight) { impl_->render(windowWidth, windowHeight); }
 
 } // namespace core

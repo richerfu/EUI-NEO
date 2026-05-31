@@ -6,8 +6,6 @@
 #include <memory>
 #include <cstdint>
 #include <string>
-#include <unordered_map>
-#include <utility>
 #include <vector>
 
 namespace core {
@@ -43,8 +41,14 @@ public:
         std::vector<float> caretX;
     };
 
-    TextPrimitive() = default;
-    TextPrimitive(float x, float y) : position_{x, y} {}
+    TextPrimitive();
+    TextPrimitive(float x, float y);
+    ~TextPrimitive();
+
+    TextPrimitive(const TextPrimitive&) = delete;
+    TextPrimitive& operator=(const TextPrimitive&) = delete;
+    TextPrimitive(TextPrimitive&&) noexcept;
+    TextPrimitive& operator=(TextPrimitive&&) noexcept;
 
     bool initialize();
     void destroy();
@@ -81,60 +85,8 @@ public:
     void render(int windowWidth, int windowHeight);
 
 private:
-    struct LaidOutGlyph {
-        Glyph glyph;
-        float x = 0.0f;
-        float y = 0.0f;
-    };
-
-    struct Line {
-        std::vector<LaidOutGlyph> glyphs;
-        float width = 0.0f;
-    };
-
-    bool loadFont();
-    bool ensureGlyph(const ShapedGlyph& shaped);
-    Glyph* findGlyph(std::uint64_t key);
-    void cacheGlyph(std::uint64_t key, const Glyph& glyph);
-    void invalidateLayout();
-    void invalidateVertices();
-    void rebuildLayout();
-    void rebuildVertices();
-    std::vector<ShapedGlyph> shapeText(const std::string& text);
-    void appendShapedGlyphToLine(Line& line, const ShapedGlyph& shaped, float& cursorX);
-
-    static unsigned int readCodepoint(const std::string& text, size_t& index);
-    static std::string resolveFontPath(const std::string& fontFamily, int fontWeight);
-
-    Vec2 position_;
-    Vec2 visualScaleOrigin_;
-    float visualScale_ = 1.0f;
-    Transform transform_;
-    Rect transformFrame_;
-    TransformMatrix transformMatrix_;
-    bool hasTransformMatrix_ = false;
-    TextStyle style_;
-    std::shared_ptr<void> fontInfoStorage_;
-    float scale_ = 1.0f;
-    float ascent_ = 0.0f;
-    float descent_ = 0.0f;
-    float lineGap_ = 0.0f;
-
-    std::unordered_map<std::uint64_t, Glyph> glyphs_;
-
-    std::vector<Line> lines_;
-    std::vector<float> vertices_;
-    Vec2 measuredSize_;
-    bool layoutDirty_ = true;
-    bool verticesDirty_ = true;
-    bool fontDirty_ = true;
-
-    unsigned int vao_ = 0;
-    unsigned int vbo_ = 0;
-    unsigned int shaderProgram_ = 0;
-    int windowSizeLocation_ = -1;
-    int colorLocation_ = -1;
-    int textureLocation_ = -1;
+    struct Impl;
+    std::unique_ptr<Impl> impl_;
 };
 
 } // namespace core
