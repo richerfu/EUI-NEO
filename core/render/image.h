@@ -3,8 +3,6 @@
 #include "core/render/image_types.h"
 #include "core/render/render_types.h"
 
-#include <glad/glad.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -45,8 +43,8 @@ private:
     static SharedResources& sharedResources();
     static bool retainSharedResources();
     static void releaseSharedResources();
-    static GLuint compileShader(GLenum type, const char* source);
-    static GLuint acquireTexture(const std::string& source, bool flipVertically, bool* pending, int* width, int* height, std::string* cacheKey);
+    static unsigned int compileShader(unsigned int type, const char* source);
+    static unsigned int acquireTexture(const std::string& source, bool flipVertically, bool* pending, int* width, int* height, std::string* cacheKey);
     static void releaseCachedTexture(const std::string& cacheKey);
 
     bool updateGifTexture(const std::string& resolvedPath);
@@ -71,7 +69,7 @@ private:
     bool hasCoverViewport_ = false;
     Vec2 coverViewportSize_;
     Vec2 coverViewportOffset_;
-    GLuint texture_ = 0;
+    unsigned int texture_ = 0;
     bool ownsTexture_ = false;
     std::string loadedTextureCacheKey_;
     int textureWidth_ = 0;
@@ -85,14 +83,14 @@ private:
     int gifFrameIndex_ = 0;
     double gifNextFrameTime_ = 0.0;
 
-    GLuint vao_ = 0;
-    GLuint vbo_ = 0;
-    GLuint shaderProgram_ = 0;
-    GLint windowSizeLocation_ = -1;
-    GLint textureLocation_ = -1;
-    GLint tintLocation_ = -1;
-    GLint rectLocation_ = -1;
-    GLint radiusLocation_ = -1;
+    unsigned int vao_ = 0;
+    unsigned int vbo_ = 0;
+    unsigned int shaderProgram_ = 0;
+    int windowSizeLocation_ = -1;
+    int textureLocation_ = -1;
+    int tintLocation_ = -1;
+    int rectLocation_ = -1;
+    int radiusLocation_ = -1;
 };
 
 } // namespace core

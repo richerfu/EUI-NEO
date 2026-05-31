@@ -1790,19 +1790,4 @@ std::string TextPrimitive::resolveFontPath(const std::string& fontFamily, int fo
 #endif
 }
 
-GLuint TextPrimitive::compileShader(GLenum type, const char* source) {
-    GLuint shader = glCreateShader(type);
-    glShaderSource(shader, 1, &source, nullptr);
-    glCompileShader(shader);
-
-    GLint compiled = 0;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
-    if (!compiled) {
-        glDeleteShader(shader);
-        return 0;
-    }
-
-    return shader;
-}
-
 } // namespace core

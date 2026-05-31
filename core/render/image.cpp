@@ -3,6 +3,8 @@
 #include "core/platform/network.h"
 #include "core/platform/window_backend.h"
 
+#include <glad/glad.h>
+
 #include <algorithm>
 #include <atomic>
 #include <cctype>
@@ -903,7 +905,7 @@ void ImagePrimitive::releaseSharedResources() {
     resources.radiusLocation = -1;
 }
 
-GLuint ImagePrimitive::compileShader(GLenum type, const char* source) {
+unsigned int ImagePrimitive::compileShader(unsigned int type, const char* source) {
     GLuint shader = glCreateShader(type);
     glShaderSource(shader, 1, &source, nullptr);
     glCompileShader(shader);
@@ -1039,12 +1041,12 @@ void ImagePrimitive::releaseCachedTextureReference() {
     }
 }
 
-GLuint ImagePrimitive::acquireTexture(const std::string& source,
-                                      bool flipVertically,
-                                      bool* pending,
-                                      int* outWidth,
-                                      int* outHeight,
-                                      std::string* outCacheKey) {
+unsigned int ImagePrimitive::acquireTexture(const std::string& source,
+                                            bool flipVertically,
+                                            bool* pending,
+                                            int* outWidth,
+                                            int* outHeight,
+                                            std::string* outCacheKey) {
     const std::string resolvedPath = resolveImagePath(source, pending);
     if (resolvedPath.empty()) {
         return 0;

@@ -3,8 +3,6 @@
 #include "core/render/render_types.h"
 #include "core/render/text_types.h"
 
-#include <glad/glad.h>
-
 #include <memory>
 #include <cstdint>
 #include <string>
@@ -107,7 +105,6 @@ private:
 
     static unsigned int readCodepoint(const std::string& text, size_t& index);
     static std::string resolveFontPath(const std::string& fontFamily, int fontWeight);
-    static GLuint compileShader(GLenum type, const char* source);
 
     Vec2 position_;
     Vec2 visualScaleOrigin_;
@@ -132,12 +129,12 @@ private:
     bool verticesDirty_ = true;
     bool fontDirty_ = true;
 
-    GLuint vao_ = 0;
-    GLuint vbo_ = 0;
-    GLuint shaderProgram_ = 0;
-    GLint windowSizeLocation_ = -1;
-    GLint colorLocation_ = -1;
-    GLint textureLocation_ = -1;
+    unsigned int vao_ = 0;
+    unsigned int vbo_ = 0;
+    unsigned int shaderProgram_ = 0;
+    int windowSizeLocation_ = -1;
+    int colorLocation_ = -1;
+    int textureLocation_ = -1;
 };
 
 } // namespace core
