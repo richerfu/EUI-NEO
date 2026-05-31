@@ -4,7 +4,7 @@
 #include "core/layout.h"
 #include "core/platform/event.h"
 #include "core/render/render_types.h"
-#include "core/render/text.h"
+#include "core/render/text_types.h"
 
 namespace eui {
 
