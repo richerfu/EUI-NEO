@@ -110,7 +110,7 @@ public:
                     .size(w, h)
                     .perspective(640.0f)
                     .transformOrigin(0.5f, 0.5f)
-                    .pointerTiltFrom(id_ + ".hit", maxTilt_, 1.012f)
+                    .runtimePointerTiltFrom(id_ + ".hit", maxTilt_, 1.012f)
                     .transition(noTransformTransition)
                     .content([&] {
                         ui_.rect(id_ + ".surface")

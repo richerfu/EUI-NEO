@@ -327,6 +327,7 @@ private:
         AnimatedValue<float> opacity;
         AnimatedValue<Transform> transform;
         std::string source;
+        std::string svgSource;
         bool flipVertically = false;
         ImageFit fit = ImageFit::Cover;
         bool hasCoverViewport = false;
@@ -889,16 +890,16 @@ private:
         return transform;
     }
 
-    Transform pointerTiltTransform(const Element& element,
-                                   const PointerEvent& event,
-                                   float dpiScale,
-                                   const std::string& hoverTargetId) const {
+    Transform pointerRuntimeTransform(const Element& element,
+                                      const PointerEvent& event,
+                                      float dpiScale,
+                                      const std::string& hoverTargetId) const {
         Transform result = element.transform;
-        if (element.pointerTiltSourceId.empty() || element.pointerTiltMax <= 0.0f) {
+        if (element.pointerRuntimeSourceId.empty() || element.pointerRuntimeAmount <= 0.0f) {
             return result;
         }
 
-        const Element* source = ui_.find(element.pointerTiltSourceId);
+        const Element* source = ui_.find(element.pointerRuntimeSourceId);
         const bool hover = source != nullptr && hoverTargetId == source->id && !source->disabled;
         if (!hover || source == nullptr) {
             return result;
@@ -909,11 +910,13 @@ private:
         const float localY = static_cast<float>(event.y) - bounds.y;
         const float nx = std::clamp(localX / std::max(1.0f, bounds.width), 0.0f, 1.0f) - 0.5f;
         const float ny = std::clamp(localY / std::max(1.0f, bounds.height), 0.0f, 1.0f) - 0.5f;
-        result.rotateY += nx * element.pointerTiltMax;
-        result.rotateX += -ny * element.pointerTiltMax;
+        result.rotateY += nx * element.pointerRuntimeMaxRotateY;
+        result.rotateX += -ny * element.pointerRuntimeMaxRotateX;
+        result.translate.x += nx * element.pointerRuntimeTranslate.x;
+        result.translate.y += ny * element.pointerRuntimeTranslate.y;
         result.scale = {
-            result.scale.x * element.pointerTiltHoverScale,
-            result.scale.y * element.pointerTiltHoverScale
+            result.scale.x * element.pointerRuntimeHoverScale,
+            result.scale.y * element.pointerRuntimeHoverScale
         };
         return result;
     }
@@ -1076,7 +1079,7 @@ private:
             const LayoutRect frame = instance != texts_.end() ? instance->second.frame.value() : element.frame;
             const Transform transform = instance != texts_.end() ? instance->second.transform.value() : element.transform;
             local = transformRect({frame.x, frame.y, frame.width, frame.height}, frame, transform);
-        } else if (element.kind == ElementKind::Image) {
+        } else if (element.kind == ElementKind::Image || element.kind == ElementKind::Svg) {
             const auto instance = images_.find(element.id);
             const LayoutRect frame = instance != images_.end() ? instance->second.frame.value() : element.frame;
             const Transform transform = instance != images_.end() ? instance->second.transform.value() : element.transform;
@@ -1142,7 +1145,7 @@ private:
             updatePolygon(element, deltaSeconds, dpiScale, inheritedTransform, ancestorFrameChanged);
         } else if (element.kind == ElementKind::Text) {
             updateText(element, deltaSeconds, dpiScale, inheritedTransform, ancestorFrameChanged);
-        } else if (element.kind == ElementKind::Image) {
+        } else if (element.kind == ElementKind::Image || element.kind == ElementKind::Svg) {
             updateImage(element, deltaSeconds, dpiScale, inheritedTransform, ancestorFrameChanged);
         }
 
@@ -1686,7 +1689,7 @@ private:
             if (instance != texts_.end()) {
                 return instance->second.transform.value();
             }
-        } else if (element.kind == ElementKind::Image) {
+        } else if (element.kind == ElementKind::Image || element.kind == ElementKind::Svg) {
             const auto instance = images_.find(element.id);
             if (instance != images_.end()) {
                 return instance->second.transform.value();
@@ -1706,7 +1709,7 @@ private:
         if (element.kind == ElementKind::Rect ||
             element.kind == ElementKind::Polygon ||
             element.kind == ElementKind::Text ||
-            element.kind == ElementKind::Image) {
+            element.kind == ElementKind::Image || element.kind == ElementKind::Svg) {
             return combinedPrimitiveMatrix(renderTransform, bounds, scaleTransform(currentElementTransform(element), dpiScale));
         }
         return renderTransform.matrix;
@@ -1792,7 +1795,7 @@ private:
             64.0f), dpiScale, inheritedTransform);
 
         bool changed = false;
-        Transform targetTransform = pointerTiltTransform(element, event, dpiScale, hoverTargetId);
+        Transform targetTransform = pointerRuntimeTransform(element, event, dpiScale, hoverTargetId);
         targetTransform = runtimeTransformForElement(element, targetTransform);
         changed = instance.transform.setTarget(targetTransform, element.transition, shouldAnimate(element, AnimProperty::Transform)) || changed;
         changed = instance.opacity.setTarget(element.opacity, element.transition, shouldAnimate(element, AnimProperty::Opacity)) || changed;
@@ -2040,13 +2043,19 @@ private:
         }
 
         const bool sourceChanged = instance.source != element.imageSource ||
+                                   instance.svgSource != element.svgSource ||
                                    instance.flipVertically != element.imageFlipVertically ||
                                    instance.fit != element.imageFit;
         if (sourceChanged) {
             instance.source = element.imageSource;
+            instance.svgSource = element.svgSource;
             instance.flipVertically = element.imageFlipVertically;
             instance.fit = element.imageFit;
-            instance.primitive->setSource(instance.source);
+            if (element.kind == ElementKind::Svg) {
+                instance.primitive->setSvgSource(element.id, instance.svgSource);
+            } else {
+                instance.primitive->setSource(instance.source);
+            }
             instance.primitive->setFlipVertically(instance.flipVertically);
             instance.primitive->setFit(instance.fit);
             changed = true;
@@ -2567,7 +2576,7 @@ private:
                 applyOptionalScissor(renderBackend, effectiveHasScissor, effectiveScissor, windowHeight);
                 renderText(element, windowWidth, windowHeight, dpiScale, renderTransform);
             }
-        } else if (element.kind == ElementKind::Image) {
+        } else if (element.kind == ElementKind::Image || element.kind == ElementKind::Svg) {
             Rect visual = toPixelRect(imageVisualRect(imageInstance(element.id).frame.value(),
                                                      imageInstance(element.id).transform.value()), dpiScale);
             visual = applyRenderTransform(visual, renderTransform);

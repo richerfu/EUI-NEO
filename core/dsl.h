@@ -8,6 +8,7 @@
 #include "core/render/text_types.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <functional>
 #include <type_traits>
@@ -51,7 +52,8 @@ enum class ElementKind {
     Rect,
     Polygon,
     Text,
-    Image
+    Image,
+    Svg
 };
 
 enum class HitTestMode {
@@ -122,6 +124,7 @@ struct Element {
     float lineHeight = 0.0f;
 
     std::string imageSource;
+    std::string svgSource;
     bool imageFlipVertically = false;
     ImageFit imageFit = ImageFit::Cover;
     bool imageHasCoverViewport = false;
@@ -155,7 +158,7 @@ struct Element {
     float timerSeconds = 0.0f;
     std::string visualStateSourceId;
     std::string hoverOpacitySourceId;
-    std::string pointerTiltSourceId;
+    std::string pointerRuntimeSourceId;
     std::string scrollStateId;
     std::string scrollContentSourceId;
     std::string scrollDragSourceId;
@@ -167,8 +170,11 @@ struct Element {
     float pressedScale = 1.0f;
     float hoverHiddenOpacity = 0.0f;
     float hoverVisibleOpacity = 1.0f;
-    float pointerTiltMax = 0.0f;
-    float pointerTiltHoverScale = 1.0f;
+    float pointerRuntimeAmount = 0.0f;
+    float pointerRuntimeMaxRotateX = 0.0f;
+    float pointerRuntimeMaxRotateY = 0.0f;
+    float pointerRuntimeHoverScale = 1.0f;
+    Vec2 pointerRuntimeTranslate = {0.0f, 0.0f};
     float scrollOffset = 0.0f;
     float scrollMaxOffset = 0.0f;
     float scrollStep = 48.0f;
@@ -655,7 +661,13 @@ public:
 
     Derived& visualStateFrom(const std::string& id, float pressedScaleValue = 0.965f);
     Derived& hoverOpacityFrom(const std::string& id, float hiddenOpacity = 0.0f, float visibleOpacity = 1.0f);
-    Derived& pointerTiltFrom(const std::string& id, float maxTiltRadians, float hoverScale = 1.0f);
+    Derived& runtimePointerTransformFrom(const std::string& id,
+                                         float maxRotateXRadians = 0.0f,
+                                         float maxRotateYRadians = 0.0f,
+                                         float hoverScale = 1.0f,
+                                         float maxTranslateX = 0.0f,
+                                         float maxTranslateY = 0.0f);
+    Derived& runtimePointerTiltFrom(const std::string& id, float maxTiltRadians, float hoverScale = 1.0f);
     Derived& scrollState(const std::string& id, float offset, float maxOffset, float step = 48.0f);
     Derived& scrollContentFrom(const std::string& id);
     Derived& scrollDragFrom(const std::string& id, float travel);
@@ -1183,6 +1195,21 @@ public:
     }
 };
 
+class SvgBuilder : public ImageBuilder {
+public:
+    SvgBuilder(Ui& ui, Element* element) : ImageBuilder(ui, element) {}
+
+    SvgBuilder& source(std::string value) {
+        element_->svgSource = std::move(value);
+        element_->imageSource.clear();
+        return *this;
+    }
+
+    SvgBuilder& markup(std::string value) {
+        return source(std::move(value));
+    }
+};
+
 class Ui {
 public:
     void begin(const std::string& pageId = "") {
@@ -1231,6 +1258,10 @@ public:
 
     ImageBuilder image(const std::string& id) {
         return ImageBuilder(*this, addElement(ElementKind::Image, id));
+    }
+
+    SvgBuilder svg(const std::string& id) {
+        return SvgBuilder(*this, addElement(ElementKind::Svg, id));
     }
 
     void layout(float width, float height) {
@@ -1330,6 +1361,8 @@ private:
             prefix = "__text";
         } else if (kind == ElementKind::Image) {
             prefix = "__image";
+        } else if (kind == ElementKind::Svg) {
+            prefix = "__svg";
         }
         return resolveId(std::string(prefix) + "." + std::to_string(generatedId_++));
     }
@@ -1393,10 +1426,30 @@ Derived& BuilderBase<Derived>::hoverOpacityFrom(const std::string& id, float hid
 }
 
 template <typename Derived>
-Derived& BuilderBase<Derived>::pointerTiltFrom(const std::string& id, float maxTiltRadians, float hoverScale) {
-    element_->pointerTiltSourceId = ui_->resolveId(id);
-    element_->pointerTiltMax = std::clamp(maxTiltRadians, 0.0f, 0.80f);
-    element_->pointerTiltHoverScale = std::clamp(hoverScale, 0.50f, 2.0f);
+Derived& BuilderBase<Derived>::runtimePointerTransformFrom(const std::string& id,
+                                                           float maxRotateXRadians,
+                                                           float maxRotateYRadians,
+                                                           float hoverScale,
+                                                           float maxTranslateX,
+                                                           float maxTranslateY) {
+    element_->pointerRuntimeSourceId = ui_->resolveId(id);
+    element_->pointerRuntimeMaxRotateX = std::clamp(maxRotateXRadians, -0.80f, 0.80f);
+    element_->pointerRuntimeMaxRotateY = std::clamp(maxRotateYRadians, -0.80f, 0.80f);
+    element_->pointerRuntimeAmount = std::max({
+        std::abs(element_->pointerRuntimeMaxRotateX),
+        std::abs(element_->pointerRuntimeMaxRotateY),
+        std::abs(maxTranslateX),
+        std::abs(maxTranslateY)
+    });
+    element_->pointerRuntimeHoverScale = std::clamp(hoverScale, 0.50f, 2.0f);
+    element_->pointerRuntimeTranslate = {maxTranslateX, maxTranslateY};
+    return self();
+}
+
+template <typename Derived>
+Derived& BuilderBase<Derived>::runtimePointerTiltFrom(const std::string& id, float maxTiltRadians, float hoverScale) {
+    const float tilt = std::clamp(maxTiltRadians, 0.0f, 0.80f);
+    runtimePointerTransformFrom(id, tilt, tilt, hoverScale);
     return self();
 }
 

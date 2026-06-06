@@ -134,7 +134,7 @@ ui.stack("root")
 
 focus 命中也遵守同样的 topmost 顺序。鼠标按下时，如果最上层命中的是 focusable 元素，就聚焦它；如果最上层命中的是非 focusable 的 interactive 元素，例如 sidebar scrim、modal panel 背景或透明 hit rect，Runtime 会停止向下查找并清空焦点，避免点击穿透到底层输入框。
 
-底层 DSL 的 `onPress/onRelease/onMove/onDrag/onScroll` 回调直接使用 Runtime 原始事件。`onMove` 只在元素是当前 topmost hover 目标且指针移动或刚进入 hover 时派发，适合 pointer-follow、spotlight、倾斜卡片等效果。页面或组件需要 tap、拖拽阈值、滚轮步进、局部坐标、进入/离开 hover 时，优先用组件层的 `components::mouseArea(ui, id)`。
+底层 DSL 的 `onPress/onRelease/onMove/onDrag/onScroll` 回调直接使用 Runtime 原始事件。`onMove` 只在元素是当前 topmost hover 目标且指针移动或刚进入 hover 时派发，适合确实需要回调改业务状态或组件私有视觉状态的场景。纯视觉、高频 pointer-follow transform 应优先用 Runtime binding，例如 `.runtimePointerTransformFrom(...)` / `.runtimePointerTiltFrom(...)`，避免每次 mouse move 触发组件状态写入和 compose。页面或组件需要 tap、拖拽阈值、滚轮步进、局部坐标、进入/离开 hover 时，优先用组件层的 `components::mouseArea(ui, id)`。
 
 示例：
 
@@ -266,6 +266,15 @@ ui.image("bing")
     .bingDaily(0, "zh-CN")
     .cover()
     .build();
+
+ui.svg("heart.icon")
+    .size(48.0f, 48.0f)
+    .source(R"svg(<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <path fill="#ffffff" d="M12 21s-8-4.7-8-11a5 5 0 0 1 8-4 5 5 0 0 1 8 4c0 6.3-8 11-8 11z"/>
+</svg>)svg")
+    .tint({1.0f, 0.36f, 0.58f, 1.0f})
+    .contain()
+    .build();
 ```
 
 Image 支持：
@@ -275,6 +284,7 @@ Image 支持：
 .path(path)
 .url(url)
 .bingDaily(idx, mkt)
+.svg(id).source(svgMarkup)
 .fit(eui::ImageFit::Cover)
 .cover()
 .contain()

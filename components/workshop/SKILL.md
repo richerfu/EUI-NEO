@@ -26,7 +26,7 @@ Workshop components are creative, brand-like, or effect-heavy components. They s
    - `background`, `border-radius`, `box-shadow` -> `ui.rect(...)`
    - text content -> `ui.text(...)`
    - icons -> `ui.text(...).icon(...)` or existing icon helpers
-   - SVG icons -> prefer `ui.image(...)` with an inline SVG cache file when exact path fidelity matters
+   - SVG icons -> use `ui.svg(...)` with inline SVG markup when exact path fidelity matters
    - pseudo-elements such as `::before` / `::after` -> extra rect/text layers with stable ids
    - CSS transforms -> `.translate(...)`, `.scale(...)`, `.rotate(...)`, `.rotateX(...)`, `.rotateY(...)`, `.perspective(...)`, `visualStateFrom(...)`
 
@@ -60,7 +60,7 @@ components::workshop::myComponent(ui, "demo.my_component")
 7. Preserve exact SVG shapes when needed:
    - If the source component is fundamentally an SVG path, do not approximate it with rect/polygon unless the user explicitly wants a DSL-only drawing.
    - Inline the SVG string in the component header when portability matters.
-   - Write the SVG to a stable temp-cache path on first use, then render it through `ui.image(...).source(path).tint(color).contain()`.
+   - Render inline SVG through `ui.svg(...).source(svg).tint(color).contain()`.
    - Keep the SVG fill white and use image tint for theme colors.
    - Avoid adding repo asset files for one-off workshop components unless the user asks for external assets.
 
@@ -102,7 +102,8 @@ inline MyComponentBuilder myComponent(core::dsl::Ui& ui, const std::string& id) 
 ## Interaction Rules
 
 - Use DSL events (`onClick`, `onPress`, `onRelease`, `onMove`, `onHoverChanged`) or `components::mouseArea`.
-- Use `components::mouseArea(...).onMove(...)` for pointer-follow, spotlight, magnetic, or tilt-card effects that need hover-time local coordinates.
+- For pure visual pointer-follow transforms, prefer Runtime binding (`.runtimePointerTransformFrom(...)` or `.runtimePointerTiltFrom(...)`) over `mouseArea.onMove(...)` state maps so hover movement does not recompose the component.
+- Use `components::mouseArea(...).onMove(...)` only when the component needs callback-driven business state or visual state that Runtime cannot derive yet.
 - Map pointer-local coordinates into normalized `[-0.5, 0.5]` values before applying `.rotateX(...)`, `.rotateY(...)`, or light offsets.
 - Do not read GLFW/SDL state directly.
 - Business state belongs to the page; workshop components may keep small visual-only state when the DSL has no built-in state channel for that effect.

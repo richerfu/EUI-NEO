@@ -6,10 +6,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <filesystem>
-#include <fstream>
 #include <functional>
-#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -130,8 +127,8 @@ public:
                     })
                     .build();
 
-                drawHeartSvg(id_ + ".outline", outlineSvgPath(), iconX, iconY, iconSize, style_.heart, outlineOpacity, 1.0f);
-                drawHeartSvg(id_ + ".filled", filledSvgPath(), iconX, iconY, iconSize, heartColor, fillOpacity, std::max(0.001f, filledScale));
+                drawHeartSvg(id_ + ".outline", outlineSvg(), iconX, iconY, iconSize, style_.heart, outlineOpacity, 1.0f);
+                drawHeartSvg(id_ + ".filled", filledSvg(), iconX, iconY, iconSize, heartColor, fillOpacity, std::max(0.001f, filledScale));
 
                 drawCelebration(w, h, side, celebrateScale, std::clamp(celebrateOpacity, 0.0f, 1.0f));
 
@@ -207,51 +204,15 @@ private:
 )svg";
     }
 
-    static std::string svgCachePath(const std::string& filename, const char* svg) {
-        static std::mutex mutex;
-        std::lock_guard<std::mutex> lock(mutex);
-
-        std::error_code error;
-        const std::filesystem::path directory = std::filesystem::temp_directory_path(error) / "eui_neo_workshop";
-        if (error) {
-            return {};
-        }
-        std::filesystem::create_directories(directory, error);
-        if (error) {
-            return {};
-        }
-
-        const std::filesystem::path path = directory / filename;
-        if (!std::filesystem::exists(path, error) || error) {
-            error.clear();
-            std::ofstream file(path, std::ios::binary);
-            if (!file.good()) {
-                return {};
-            }
-            file << svg;
-        }
-        return path.string();
-    }
-
-    static const std::string& outlineSvgPath() {
-        static const std::string path = svgCachePath("heart_switch_outline.svg", outlineSvg());
-        return path;
-    }
-
-    static const std::string& filledSvgPath() {
-        static const std::string path = svgCachePath("heart_switch_filled.svg", filledSvg());
-        return path;
-    }
-
     void drawHeartSvg(const std::string& partId,
-                      const std::string& source,
+                      const char* source,
                       float x,
                       float y,
                       float size,
                       const core::Color& color,
                       float opacity,
                       float scale) {
-        ui_.image(partId)
+        ui_.svg(partId)
             .source(source)
             .x(x)
             .y(y)
