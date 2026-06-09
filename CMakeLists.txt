@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(EUI-NEO VERSION 1.0)
+project(EUI-NEO VERSION 0.4.1)
 
 # -----------------------------------------------------------------------------
 # Options

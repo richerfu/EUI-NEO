@@ -316,19 +316,53 @@ GalleryBingPage bingPage;
 GalleryAboutPage aboutPage;
 
 void composePageBody(eui::Ui& ui, float width, float height) {
-    if (selectedPage == 0) {
-        controlsPage.compose(ui, width, height);
-    } else if (selectedPage == 1) {
-        stylePage.compose(ui, width, height);
-    } else if (selectedPage == 2) {
-        animationPage.compose(ui, width, height);
-    } else if (selectedPage == 3) {
-        settingsPage.compose(ui, width, height);
-    } else if (selectedPage == 4) {
-        bingPage.compose(ui, width, height);
-    } else {
-        aboutPage.compose(ui, width, height);
-    }
+    ui.loader("pages.controls")
+        .active(selectedPage == 0)
+        .keepAlive()
+        .content([&] {
+            controlsPage.compose(ui, width, height);
+        })
+        .build();
+
+    ui.loader("pages.style")
+        .active(selectedPage == 1)
+        .keepAlive()
+        .content([&] {
+            stylePage.compose(ui, width, height);
+        })
+        .build();
+
+    ui.loader("pages.animation")
+        .active(selectedPage == 2)
+        .keepAlive()
+        .content([&] {
+            animationPage.compose(ui, width, height);
+        })
+        .build();
+
+    ui.loader("pages.settings")
+        .active(selectedPage == 3)
+        .keepAlive()
+        .content([&] {
+            settingsPage.compose(ui, width, height);
+        })
+        .build();
+
+    ui.loader("pages.bing")
+        .active(selectedPage == 4)
+        .keepAlive()
+        .content([&] {
+            bingPage.compose(ui, width, height);
+        })
+        .build();
+
+    ui.loader("pages.about")
+        .active(selectedPage == 5)
+        .keepAlive()
+        .content([&] {
+            aboutPage.compose(ui, width, height);
+        })
+        .build();
 }
 
 void composeContent(eui::Ui& ui, float width, float height) {

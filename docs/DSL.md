@@ -106,6 +106,54 @@ ui.stack("root")
 
 `Row / Column` 的主轴 flex 分配会把结果作为子项测量约束，fixed、wrapContent 和 fill 子项都可以显式参与 grow / shrink；默认 `flexShrink` 为 0，避免固定尺寸控件被意外压扁。`Stack` 会用自身最终 inner size 重新测量 fill 子项，适合背景层和覆盖层；`Stack.wrapContent()` 会把子项正向 x/y 偏移计入包裹尺寸，负向偏移仍视为向外溢出。
 
+## Loader 与实例状态
+
+`loader` 是 DSL 级生命周期 scope，不是可视图元。它用于按 `active` 动态挂载一段 UI 子树，并决定这段子树隐藏时是否释放实例状态。
+
+```cpp
+ui.loader("settings.loader")
+    .active(showSettings)
+    .destroyOnHide()
+    .content([&] {
+        settingsPage.compose(ui, width, height);
+    })
+    .build();
+
+ui.loader("editor.loader")
+    .active(showEditor)
+    .keepAlive()
+    .content([&] {
+        editorPage.compose(ui, width, height);
+    })
+    .build();
+```
+
+模式：
+
+- `destroyOnHide()`：`active(false)` 时不 compose 内容，并释放该 loader scope 下通过 `ui.state<T>(id)` 创建的实例状态。
+- `keepAlive()`：`active(false)` 时不 compose 内容，但保留该 loader scope 下的实例状态，下一次 active 后恢复。
+
+Loader 内部会给内容 id 增加 scope 前缀，避免不同 loader 中的同名元素和实例状态相互串扰。组件作者可以用 `ui.state<T>(id)` 存放纯交互状态；状态 key 会自动包含当前 `pageId` 和 loader scope。
+
+```cpp
+struct CounterState {
+    int value = 0;
+};
+
+ui.loader("counter.loader")
+    .active(showCounter)
+    .keepAlive()
+    .content([&] {
+        CounterState& state = ui.state<CounterState>("counter");
+        ui.text("value")
+            .text(std::to_string(state.value))
+            .build();
+    })
+    .build();
+```
+
+组件内部的纯交互状态应统一走 `ui.state<T>(id)`，不要再使用组件级静态 `id -> state` 表。当前已接入该模型的状态包括 `input`、`mouseArea`、`carousel`、`datepicker`、`timepicker`、`colorpicker`、`piechart`、`workshop::heartSwitch` 和 `workshop::neumorphicButton`。
+
 ## 通用交互 DSL
 
 `Row / Column / Stack / Rect / Text / Image / Polygon` 都支持通用交互方法：
