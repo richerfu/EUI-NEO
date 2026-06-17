@@ -4,6 +4,7 @@
 #include "core/window/window_backend.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cstdio>
 #include <cstdlib>
 #include <cstdint>
@@ -60,6 +61,11 @@ struct TrayState {
 TrayState& trayState() {
     static TrayState state;
     return state;
+}
+
+std::atomic<bool>& updateRequested() {
+    static std::atomic<bool> requested{false};
+    return requested;
 }
 
 std::filesystem::path executableDirectory() {
@@ -709,6 +715,15 @@ void shutdownTray() {
 
 void setImeCursorRect(window::Handle window, float x, float y, float width, float height) {
     core::window::setImeCursorRect(window, x, y, width, height);
+}
+
+void requestUpdate() {
+    updateRequested().store(true);
+    window::postEmptyEvent();
+}
+
+bool consumeUpdateRequest() {
+    return updateRequested().exchange(false);
 }
 
 } // namespace core::platform

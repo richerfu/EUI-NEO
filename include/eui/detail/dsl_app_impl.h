@@ -5,6 +5,7 @@
 
 #include "3rd/stb_image.h"
 #include "core/dsl_runtime.h"
+#include "core/platform/platform.h"
 #include "core/render/text.h"
 
 #include <algorithm>
@@ -144,7 +145,7 @@ void openWindow(const DslWindowConfig& config, DslWindowCompose composeFn) {
     request.modal = config.modalValue;
     request.compose = std::move(composeFn);
     detail::dslWindowRequests().push_back(std::move(request));
-    core::window::postEmptyEvent();
+    requestUpdate();
 }
 
 void openWindow(const char* title, int width, int height, DslWindowCompose composeFn) {
@@ -199,6 +200,10 @@ const char* trayIconPath() {
         : config.iconPathValue;
 }
 
+void requestUpdate() {
+    core::platform::requestUpdate();
+}
+
 bool initialize(core::window::Handle window) {
     const DslAppConfig& config = dslAppConfig();
     core::TextPrimitive::setDefaultFontFiles(
@@ -215,7 +220,8 @@ bool initialize(core::window::Handle window) {
 
 bool update(core::window::Handle window, float deltaSeconds, int windowWidth, int windowHeight, float dpiScale, float pointerScale) {
     const bool asyncReady = core::async::dispatchReady();
-    return update(window, deltaSeconds, windowWidth, windowHeight, dpiScale, pointerScale, eui::network::consumeAnyTextReady() || asyncReady);
+    const bool updateRequested = core::platform::consumeUpdateRequest();
+    return update(window, deltaSeconds, windowWidth, windowHeight, dpiScale, pointerScale, updateRequested || asyncReady);
 }
 
 bool update(core::window::Handle window, float deltaSeconds, int windowWidth, int windowHeight, float dpiScale, float pointerScale, bool externalReady) {

@@ -30,6 +30,7 @@ int initialWindowHeight();
 bool trayEnabled();
 const char* trayTitle();
 const char* trayIconPath();
+void requestUpdate();
 bool initialize(eui::window::Handle window);
 bool update(eui::window::Handle window, float deltaSeconds, int windowWidth, int windowHeight, float dpiScale, float pointerScale);
 bool update(eui::window::Handle window, float deltaSeconds, int windowWidth, int windowHeight, float dpiScale, float pointerScale, bool externalReady);

@@ -2,7 +2,6 @@
 
 #include "eui/app.h"
 #include "core/platform/async.h"
-#include "core/platform/network.h"
 #include "core/platform/performance_stats.h"
 #include "core/platform/platform.h"
 
@@ -68,7 +67,8 @@ struct AppRunner {
 
     bool consumeExternalReady() {
         const bool asyncReady = core::async::dispatchReady();
-        return core::network::consumeAnyTextReady() || asyncReady;
+        const bool updateRequested = core::platform::consumeUpdateRequest();
+        return updateRequested || asyncReady;
     }
 
     bool anyAnimating(bool childAnimating) const {

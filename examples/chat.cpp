@@ -164,8 +164,8 @@ std::string shortText(std::string value, int limit) {
     return value + "...";
 }
 
-void wakeUi() {
-    core::network::postNetworkReadyEvent();
+void requestChatUpdate() {
+    app::requestUpdate();
 }
 
 void closeSocket(SocketHandle socket) {
@@ -309,7 +309,7 @@ public:
         worker_ = std::thread([this] {
             run();
         });
-        wakeUi();
+        requestChatUpdate();
     }
 
     void stop() {
@@ -329,7 +329,7 @@ public:
             std::lock_guard<std::mutex> lock(outgoingMutex_);
             outgoing_.push_back(text);
         }
-        wakeUi();
+        requestChatUpdate();
     }
 
 private:
@@ -356,7 +356,7 @@ private:
             runUdpClient(host, port);
         }
         running_.store(false);
-        wakeUi();
+        requestChatUpdate();
     }
 
     void runTcpServer(int port) {
@@ -607,7 +607,7 @@ private:
                 lines_.pop_front();
             }
         }
-        wakeUi();
+        requestChatUpdate();
     }
 
     void setStatus(std::string status) {
@@ -615,7 +615,7 @@ private:
             std::lock_guard<std::mutex> lock(mutex_);
             status_ = std::move(status);
         }
-        wakeUi();
+        requestChatUpdate();
     }
 
     void setListenSocket(SocketHandle socket) {
@@ -942,7 +942,6 @@ void composeSettingsDialog(eui::Ui& ui, const eui::Screen& screen, const std::st
         .zIndex(5000)
         .onClose([] {
             settings.dialogOwner.clear();
-            wakeUi();
         })
         .content([&] {
             ui.column(owner + ".settings.dialog.content")
@@ -961,7 +960,6 @@ void composeSettingsDialog(eui::Ui& ui, const eui::Screen& screen, const std::st
                         .label("Night mode")
                         .onChange([](bool value) {
                             settings.dark = value;
-                            wakeUi();
                         })
                         .build();
 
@@ -978,7 +976,6 @@ void composeSettingsDialog(eui::Ui& ui, const eui::Screen& screen, const std::st
                                 .fontSize(13.0f)
                                 .onChange([](int value) {
                                     settings.accent = value;
-                                    wakeUi();
                                 })
                                 .build();
                         })
@@ -990,7 +987,6 @@ void composeSettingsDialog(eui::Ui& ui, const eui::Screen& screen, const std::st
                         .content([&] {
                             button(ui, owner + ".settings.close", 96.0f, "Done", true, [] {
                                 settings.dialogOwner.clear();
-                                wakeUi();
                             });
                         })
                         .build();
@@ -1078,7 +1074,6 @@ void composeLauncher(eui::Ui& ui, const eui::Screen& screen) {
                                         .content([&] {
                                             button(ui, "launcher.settings", (cardW - 12.0f) * 0.5f, "Settings", false, [] {
                                                 settings.dialogOwner = "launcher";
-                                                wakeUi();
                                             });
                                             button(ui, "launcher.stop", (cardW - 12.0f) * 0.5f, "Stop All", false, [] {
                                                 stopEndpoint(serverState);

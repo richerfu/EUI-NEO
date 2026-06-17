@@ -48,5 +48,7 @@ bool consumeTrayShowRequested();
 bool consumeTrayExitRequested();
 void shutdownTray();
 void setImeCursorRect(window::Handle window, float x, float y, float width, float height);
+void requestUpdate();
+bool consumeUpdateRequest();
 
 } // namespace core::platform
