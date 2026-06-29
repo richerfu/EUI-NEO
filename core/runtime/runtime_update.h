@@ -399,6 +399,7 @@ inline void Runtime::markInstancesUnseen() {
     runtime::markEntriesUnseen(sliderStates_);
     runtime::markEntriesUnseen(frameTargets_);
     runtime::markEntriesUnseen(paintBounds_);
+    runtime::markEntriesUnseen(retainedLayers_);
 }
 
 inline void Runtime::releaseUnseenInstances() {
@@ -409,6 +410,14 @@ inline void Runtime::releaseUnseenInstances() {
         }
     };
     auto noop = [](auto&) {};
+    auto releaseLayer = [](runtime::RetainedLayerInstance& instance) {
+        core::render::RenderBackend* renderBackend = core::render::activeRenderBackend();
+        if (renderBackend != nullptr && instance.handle != nullptr) {
+            renderBackend->destroyLayer(instance.handle);
+        }
+        instance.handle = nullptr;
+        instance.valid = false;
+    };
 
     runtime::releaseUnseenEntries(rects_, releasePrimitive);
     runtime::releaseUnseenEntries(polygons_, releasePrimitive);
@@ -421,6 +430,7 @@ inline void Runtime::releaseUnseenInstances() {
     runtime::releaseUnseenEntries(sliderStates_, noop);
     runtime::releaseUnseenEntries(frameTargets_, noop);
     runtime::releaseUnseenEntries(paintBounds_, noop);
+    runtime::releaseUnseenEntries(retainedLayers_, releaseLayer);
 }
 
 inline void Runtime::markTimersUnseen() {
@@ -777,6 +787,7 @@ inline runtime::PaintBoundsInstance Runtime::updateElementTree(
         bounds.subtree = bounds.own;
         bounds.hasOwn = bounds.own.width > 0.0f && bounds.own.height > 0.0f;
         bounds.hasSubtree = bounds.hasOwn;
+        bounds.drawCost = bounds.hasOwn ? 1 : 0;
     }
 
     const std::vector<const Element*>& children = orderedElements(element);
@@ -788,6 +799,7 @@ inline runtime::PaintBoundsInstance Runtime::updateElementTree(
         }
         bounds.subtree = bounds.hasSubtree ? unionRect(bounds.subtree, childBounds.subtree) : childBounds.subtree;
         bounds.hasSubtree = true;
+        bounds.drawCost += childBounds.drawCost;
     }
 
     if (bounds.hasSubtree && element.clip) {

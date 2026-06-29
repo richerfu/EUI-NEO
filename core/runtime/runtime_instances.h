@@ -6,6 +6,7 @@
 #include "core/render/text.h"
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
@@ -160,8 +161,20 @@ struct FrameTargetInstance {
 struct PaintBoundsInstance {
     Rect own;
     Rect subtree;
+    int drawCost = 0;
     bool hasOwn = false;
     bool hasSubtree = false;
+    bool seen = false;
+};
+
+struct RetainedLayerInstance {
+    render::RenderBackend::LayerHandle handle = nullptr;
+    Rect bounds;
+    std::uint64_t signature = 0;
+    int width = 0;
+    int height = 0;
+    int stableFrames = 0;
+    bool valid = false;
     bool seen = false;
 };
 

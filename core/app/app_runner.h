@@ -33,6 +33,10 @@ struct AppRunner {
     double accumulatedTextPrepares = 0.0;
     double accumulatedTextDraws = 0.0;
     double accumulatedImageDraws = 0.0;
+    double accumulatedRetainedLayerHits = 0.0;
+    double accumulatedRetainedLayerMisses = 0.0;
+    double accumulatedRetainedLayerDraws = 0.0;
+    double accumulatedRetainedLayerRebuilds = 0.0;
     double accumulatedClearCalls = 0.0;
     double accumulatedRenderDirectPasses = 0.0;
     double accumulatedCacheBlits = 0.0;
@@ -151,6 +155,10 @@ struct AppRunner {
         accumulatedTextPrepares += static_cast<double>(stats.textPrepares);
         accumulatedTextDraws += static_cast<double>(stats.textDraws);
         accumulatedImageDraws += static_cast<double>(stats.imageDraws);
+        accumulatedRetainedLayerHits += static_cast<double>(stats.retainedLayerHits);
+        accumulatedRetainedLayerMisses += static_cast<double>(stats.retainedLayerMisses);
+        accumulatedRetainedLayerDraws += static_cast<double>(stats.retainedLayerDraws);
+        accumulatedRetainedLayerRebuilds += static_cast<double>(stats.retainedLayerRebuilds);
         accumulatedClearCalls += static_cast<double>(stats.clearCalls);
         accumulatedRenderDirectPasses += static_cast<double>(stats.renderDirectPasses);
         accumulatedCacheBlits += static_cast<double>(stats.cacheBlits);
@@ -207,6 +215,10 @@ struct AppRunner {
         const double averageTextPrepares = accumulatedTextPrepares / statsFrames;
         const double averageTextDraws = accumulatedTextDraws / statsFrames;
         const double averageImageDraws = accumulatedImageDraws / statsFrames;
+        const double averageRetainedLayerHits = accumulatedRetainedLayerHits / statsFrames;
+        const double averageRetainedLayerMisses = accumulatedRetainedLayerMisses / statsFrames;
+        const double averageRetainedLayerDraws = accumulatedRetainedLayerDraws / statsFrames;
+        const double averageRetainedLayerRebuilds = accumulatedRetainedLayerRebuilds / statsFrames;
         const double averageClearCalls = accumulatedClearCalls / statsFrames;
         const double averageRenderDirectPasses = accumulatedRenderDirectPasses / statsFrames;
         const double averageCacheBlits = accumulatedCacheBlits / statsFrames;
@@ -228,7 +240,7 @@ struct AppRunner {
         if (measuredRenderStatsFrames > 0) {
             std::snprintf(renderStatsText,
                           sizeof(renderStatsText),
-                          " | Dirty %.1f/%.0f%% | Draw R%.0f P%.0f TP%.0f T%.0f I%.0f | Pass %.1f C%.1f B%.1f/%.0f%% | Pipe RP%.1f/%.0f%% Cp%.1f Ba%.1f Sub%.1f Pr%.1f/%.0f%% Inc%.1f/%.1f Rs%.1f | Full %.0f%% Cache %.0f%% Re %.0f%%",
+                          " | Dirty %.1f/%.0f%% | Draw R%.0f P%.0f TP%.0f T%.0f I%.0f | Layer H%.0f M%.0f D%.0f Re%.0f | Pass %.1f C%.1f B%.1f/%.0f%% | Pipe RP%.1f/%.0f%% Cp%.1f Ba%.1f Sub%.1f Pr%.1f/%.0f%% Inc%.1f/%.1f Rs%.1f | Full %.0f%% Cache %.0f%% Re %.0f%%",
                           averageDirtyRects,
                           averageDirtyAreaPercent,
                           averageRectDraws,
@@ -236,6 +248,10 @@ struct AppRunner {
                           averageTextPrepares,
                           averageTextDraws,
                           averageImageDraws,
+                          averageRetainedLayerHits,
+                          averageRetainedLayerMisses,
+                          averageRetainedLayerDraws,
+                          averageRetainedLayerRebuilds,
                           averageRenderDirectPasses,
                           averageClearCalls,
                           averageCacheBlits,
@@ -306,6 +322,10 @@ struct AppRunner {
         accumulatedTextPrepares = 0.0;
         accumulatedTextDraws = 0.0;
         accumulatedImageDraws = 0.0;
+        accumulatedRetainedLayerHits = 0.0;
+        accumulatedRetainedLayerMisses = 0.0;
+        accumulatedRetainedLayerDraws = 0.0;
+        accumulatedRetainedLayerRebuilds = 0.0;
         accumulatedClearCalls = 0.0;
         accumulatedRenderDirectPasses = 0.0;
         accumulatedCacheBlits = 0.0;

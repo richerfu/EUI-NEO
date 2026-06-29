@@ -245,6 +245,7 @@ inline void Runtime::shutdown(bool releaseCachedImageTextures) {
     dependentVisualStates_.clear();
     frameTargets_.clear();
     paintBounds_.clear();
+    retainedLayers_.clear();
     elementStructure_.clear();
     hoverTargetCacheValid_ = false;
     ui_.clearState();
@@ -277,6 +278,16 @@ inline void Runtime::releaseGraphicsResources(bool releaseCachedImageTextures) {
     }
     if (releaseCachedImageTextures) {
         ImagePrimitive::releaseCachedTextures();
+    }
+    core::render::RenderBackend* renderBackend = core::render::activeRenderBackend();
+    if (renderBackend != nullptr) {
+        for (auto& item : retainedLayers_) {
+            if (item.second.handle != nullptr) {
+                renderBackend->destroyLayer(item.second.handle);
+                item.second.handle = nullptr;
+            }
+            item.second.valid = false;
+        }
     }
     destroyCursors();
     fullPaintRequested_ = true;

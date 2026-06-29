@@ -192,6 +192,13 @@ void OpenGLRenderBackend::setStandardAlphaBlend() {
     }
 }
 
+void OpenGLRenderBackend::setPremultipliedAlphaBlend() {
+    setBlendEnabled(true);
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    alphaBlendSet_ = false;
+    stateCacheValid_ = true;
+}
+
 void OpenGLRenderBackend::makeCurrent() {
     if (window_ == nullptr) {
         return;

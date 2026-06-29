@@ -34,6 +34,12 @@ public:
                          int height,
                          RenderCacheBlitMode mode = RenderCacheBlitMode::Full,
                          const std::vector<core::Rect>& dirtyRects = {}) override;
+    LayerHandle createLayer(int width, int height) override;
+    bool resizeLayer(LayerHandle layer, int width, int height) override;
+    void destroyLayer(LayerHandle layer) override;
+    bool beginLayerFrame(LayerHandle layer, int width, int height) override;
+    void endLayerFrame() override;
+    TextureHandle layerTexture(LayerHandle layer) override;
     void clear(const core::Color& color) override;
     void setScissor(bool enabled, const core::Rect& rect, int framebufferHeight) override;
     void prepareBackdropBlur(const core::Rect& bounds, float blur, int windowWidth, int windowHeight) override;
@@ -50,6 +56,12 @@ public:
                      float radius,
                      int windowWidth,
                      int windowHeight) override;
+    void drawLayerTexture(TextureHandle handle,
+                          const float* vertices,
+                          std::size_t vertexFloatCount,
+                          const core::Rect& rect,
+                          int windowWidth,
+                          int windowHeight) override;
 
 private:
     void releasePrimitiveResources();
@@ -65,6 +77,7 @@ private:
     void bindTexture2D(unsigned int texture);
     void setBlendEnabled(bool enabled);
     void setStandardAlphaBlend();
+    void setPremultipliedAlphaBlend();
     std::vector<core::Rect> resolveRenderCacheBlitRects(int width,
                                                         int height,
                                                         RenderCacheBlitMode mode,
@@ -84,6 +97,9 @@ private:
     bool cacheRecreated_ = false;
     int framebufferWidth_ = 0;
     int framebufferHeight_ = 0;
+    int layerPreviousFramebuffer_ = 0;
+    int layerPreviousViewport_[4] = {};
+    bool layerFrameActive_ = false;
     core::Rect cacheRenderArea_{};
     struct RenderCacheHistoryEntry {
         std::uint64_t generation = 0;
