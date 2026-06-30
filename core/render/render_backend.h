@@ -68,6 +68,10 @@ struct RenderFrameStats {
     int textPrepares = 0;
     int textDraws = 0;
     int imageDraws = 0;
+    int retainedLayerHits = 0;
+    int retainedLayerMisses = 0;
+    int retainedLayerDraws = 0;
+    int retainedLayerRebuilds = 0;
 };
 
 enum class RenderCacheBlitMode {
@@ -163,6 +167,7 @@ inline core::Rect fullRenderRect(int width, int height) {
 class RenderBackend {
 public:
     using TextureHandle = void*;
+    using LayerHandle = void*;
 
     virtual ~RenderBackend() = default;
 
@@ -182,6 +187,31 @@ public:
                                  int height,
                                  RenderCacheBlitMode mode = RenderCacheBlitMode::Full,
                                  const std::vector<core::Rect>& dirtyRects = {}) = 0;
+    virtual LayerHandle createLayer(int width, int height) {
+        (void)width;
+        (void)height;
+        return nullptr;
+    }
+    virtual bool resizeLayer(LayerHandle layer, int width, int height) {
+        (void)layer;
+        (void)width;
+        (void)height;
+        return false;
+    }
+    virtual void destroyLayer(LayerHandle layer) {
+        (void)layer;
+    }
+    virtual bool beginLayerFrame(LayerHandle layer, int width, int height) {
+        (void)layer;
+        (void)width;
+        (void)height;
+        return false;
+    }
+    virtual void endLayerFrame() {}
+    virtual TextureHandle layerTexture(LayerHandle layer) {
+        (void)layer;
+        return nullptr;
+    }
     virtual void clear(const core::Color& color) = 0;
     virtual void setScissor(bool enabled, const core::Rect& rect, int framebufferHeight) = 0;
     virtual void prepareBackdropBlur(const core::Rect& bounds, float blur, int windowWidth, int windowHeight) = 0;
@@ -219,6 +249,21 @@ public:
         (void)radius;
         (void)windowWidth;
         (void)windowHeight;
+    }
+    virtual void drawLayerTexture(TextureHandle handle,
+                                  const float* vertices,
+                                  std::size_t vertexFloatCount,
+                                  const core::Rect& rect,
+                                  int windowWidth,
+                                  int windowHeight) {
+        drawTexture(handle,
+                    vertices,
+                    vertexFloatCount,
+                    {1.0f, 1.0f, 1.0f, 1.0f},
+                    rect,
+                    0.0f,
+                    windowWidth,
+                    windowHeight);
     }
 };
 

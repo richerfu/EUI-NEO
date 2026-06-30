@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <cmath>
 #include <functional>
 #include <memory>
@@ -99,14 +100,58 @@ private:
                            float dpiScale,
                            const std::string& hoverTargetId);
 
-    void updateElementTree(const Element& element,
-                           const PointerEvent& event,
-                           float deltaSeconds,
-                           float dpiScale,
-                           const std::string& hoverTargetId,
-                           const RenderTransform& inheritedTransform,
-                           bool ancestorFrameChanged,
-                           bool ancestorDisabled);
+    bool canReuseStaticSubtree(const Element& element,
+                               const PointerEvent& event,
+                               float dpiScale,
+                               const RenderTransform& inheritedTransform,
+                               bool ancestorFrameChanged,
+                               bool ancestorDisabled) const;
+
+    bool elementHasActiveAnimation(const Element& element) const;
+
+    runtime::PaintBoundsInstance updateElementTree(const Element& element,
+                                                   const PointerEvent& event,
+                                                   float deltaSeconds,
+                                                   float dpiScale,
+                                                   const std::string& hoverTargetId,
+                                                   const RenderTransform& inheritedTransform,
+                                                   bool ancestorFrameChanged,
+                                                   bool ancestorDisabled);
+
+    bool isRetainedLayerCandidate(const Element& element,
+                                  const runtime::PaintBoundsInstance& bounds,
+                                  const Rect& subtreePixels,
+                                  const Rect* dirtyRect,
+                                  bool hasScissor,
+                                  const Rect& scissorRect) const;
+
+    std::uint64_t retainedLayerSignature(const Element& element,
+                                         const runtime::PaintBoundsInstance& bounds,
+                                         float dpiScale) const;
+
+    std::uint64_t retainedElementPaintSignature(const Element& element, std::uint64_t seed) const;
+
+    runtime::RetainedLayerInstance& retainedLayerInstance(const std::string& id);
+
+    void renderElementChildren(core::render::RenderBackend& renderBackend,
+                               const Element& element,
+                               int windowWidth,
+                               int windowHeight,
+                               float dpiScale,
+                               const RenderTransform& renderTransform,
+                               const Rect* dirtyRect,
+                               bool hasScissor,
+                               const Rect& scissorRect);
+
+    bool renderRetainedLayer(core::render::RenderBackend& renderBackend,
+                             const Element& element,
+                             int windowWidth,
+                             int windowHeight,
+                             float dpiScale,
+                             const RenderTransform& renderTransform,
+                             const Rect* dirtyRect,
+                             bool hasScissor,
+                             const Rect& scissorRect);
 
     runtime::RectInstance& rectInstance(const std::string& id);
 
@@ -150,6 +195,10 @@ private:
     std::string hitTestFocusable(const PointerEvent& event, float dpiScale) const;
 
     std::string hitTestScrollable(const PointerEvent& event, float dpiScale) const;
+
+    std::string resolveHoverTarget(const PointerEvent& event, float dpiScale, bool inputEnabled);
+
+    bool canReuseHoverTarget(const PointerEvent& event, float dpiScale) const;
 
     template <typename Predicate>
     std::string hitTest(const PointerEvent& event, float dpiScale, Predicate&& predicate) const;
@@ -339,6 +388,8 @@ private:
     std::unordered_map<std::string, runtime::TimerInstance> timers_;
     std::unordered_map<std::string, runtime::DependentVisualState> dependentVisualStates_;
     std::unordered_map<std::string, runtime::FrameTargetInstance> frameTargets_;
+    std::unordered_map<std::string, runtime::PaintBoundsInstance> paintBounds_;
+    std::unordered_map<std::string, runtime::RetainedLayerInstance> retainedLayers_;
     std::vector<runtime::ElementSnapshot> elementStructure_;
     std::vector<runtime::LogicalDirtyRect> dirtyRects_;
     bool paintRequested_ = true;
@@ -346,6 +397,14 @@ private:
     bool composeRequested_ = false;
     bool fullPaintRequested_ = true;
     bool wantsHandCursor_ = false;
+    bool fullTreeUpdateRequested_ = true;
+    bool pruneInstancesRequested_ = true;
+    bool retainedLayerRenderDisabled_ = false;
+    bool previousFrameAnimating_ = false;
+    bool hoverTargetCacheValid_ = false;
+    PointerEvent hoverTargetCacheEvent_;
+    float hoverTargetCacheDpiScale_ = 0.0f;
+    std::string hoverTargetCacheId_;
     std::string focusedId_;
     float logicalWidth_ = 0.0f;
     float logicalHeight_ = 0.0f;
