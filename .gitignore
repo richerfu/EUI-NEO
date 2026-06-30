@@ -1,5 +1,6 @@
 /build
 /build-*/
+/build_*/
 /build-sdl2
 /参考
 /build-check

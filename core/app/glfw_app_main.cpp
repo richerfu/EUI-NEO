@@ -503,11 +503,10 @@ int main() {
         windowState.iconified = glfwGetWindowAttrib(window, GLFW_ICONIFIED) == GLFW_TRUE;
         if (windowState.iconified) {
             renderBackend->releaseRenderCache();
-            windowState.paintRequested = true;
-            app::detail::requestFullPaint();
+            windowState.paintRequested = false;
             windowState.consumeFrameRequest();
             windowState.resetTiming(glfwGetTime());
-            glfwWaitEvents();
+            glfwWaitEventsTimeout(0.25);
             continue;
         }
 
