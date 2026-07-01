@@ -516,15 +516,6 @@ int main() {
 
         const double currentFrameTime = glfwGetTime();
 
-        if (windowState.modalChildWindow == nullptr && glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
-            if (windowState.trayAvailable) {
-                windowState.hideToTrayRequested = true;
-            } else {
-                glfwSetWindowShouldClose(window, 1);
-                break;
-            }
-        }
-
         int framebufferWidth = 0;
         int framebufferHeight = 0;
         glfwGetFramebufferSize(window, &framebufferWidth, &framebufferHeight);
