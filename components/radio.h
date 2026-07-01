@@ -65,12 +65,14 @@ public:
         const float outerY = (height_ - outer) * 0.5f;
         const float innerOffset = (outer - visibleInner) * 0.5f;
         const float labelX = outer + gap_;
-        const float labelWidth = std::max(0.0f, width_ - labelX);
+        const float horizontalInset = 10.0f;
+        const float contentX = horizontalInset;
+        const float labelWidth = std::max(0.0f, width_ - labelX - horizontalInset);
         const float labelLineHeight = fontSize_;
         const float labelY = std::max(0.0f, (height_ - labelLineHeight) * 0.5f);
         const float hitWidth = text_.empty()
-            ? outer
-            : std::min(width_, labelX + textWidth(text_, fontSize_));
+            ? outer + horizontalInset * 2.0f
+            : std::min(width_, labelX + textWidth(text_, fontSize_) + horizontalInset * 2.0f);
         core::Transition dotTransition = transition_;
         dotTransition.durationSeconds = selected_ ? 0.16f : 0.10f;
         dotTransition.ease = core::Ease::OutCubic;
@@ -92,6 +94,7 @@ public:
                     .build();
 
                 ui_.rect(id_ + ".outer")
+                    .x(contentX)
                     .y(outerY)
                     .size(outer, outer)
                     .color(selected_ ? theme::withAlpha(style_.selected, 0.18f) : style_.outer)
@@ -102,7 +105,7 @@ public:
                     .build();
 
                 ui_.rect(id_ + ".inner")
-                    .x(innerOffset)
+                    .x(contentX + innerOffset)
                     .y(outerY + innerOffset)
                     .size(visibleInner, visibleInner)
                     .color(style_.selected)
@@ -114,7 +117,7 @@ public:
 
                 if (!text_.empty()) {
                     ui_.text(id_ + ".label")
-                        .x(labelX)
+                        .x(contentX + labelX)
                         .y(labelY)
                         .size(labelWidth, labelLineHeight)
                         .text(text_)

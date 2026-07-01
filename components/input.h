@@ -18,9 +18,7 @@ struct InputStyle {
 
     explicit InputStyle(const theme::ThemeColorTokens& tokens) {
         background = tokens.surface;
-        hover = tokens.surfaceHover;
         focused = theme::resolveFieldFill(tokens, tokens.surface, 0.20f, 0.70f);
-        pressed = tokens.surfaceActive;
         border = theme::withOpacity(tokens.border, 0.78f);
         focusBorder = theme::withAlpha(tokens.primary, 0.86f);
         text = tokens.text;
@@ -30,9 +28,7 @@ struct InputStyle {
     }
 
     core::Color background;
-    core::Color hover;
     core::Color focused;
-    core::Color pressed;
     core::Color border;
     core::Color focusBorder;
     core::Color text;
@@ -129,23 +125,24 @@ public:
         const float compositionX = hasComposition
             ? std::clamp(layout.clampedCursorX(), compositionTextLeft, std::max(compositionTextLeft, compositionTextRight - compositionWidth))
             : layout.clampedCursorX();
+        const float caretX = hasComposition
+            ? std::clamp(compositionX + compositionWidth, inset_, std::max(inset_, width_ - inset_))
+            : layout.clampedCursorX();
 
         ui_.stack(id_)
             .size(width_, height_)
             .clip()
             .dirtyKey(InputModel::makeDirtyKey(state, focused, layout))
             .content([&] {
-                ui_.rect(hitId)
+                auto hit = ui_.rect(hitId)
                     .size(width_, height_)
-                    .states(style_.background,
-                            style_.background,
-                            style_.background)
+                    .color(style_.background)
                     .radius(style_.radius)
                     .border(1.0f, focused ? style_.focusBorder : style_.border)
                     .shadow(focused ? style_.shadow : core::Shadow{})
                     .transition(transition_)
                     .focusable()
-                    .imeRect(layout.clampedCursorX(), layout.cursorY, 1.5f, textLineHeight)
+                    .imeRect(caretX, layout.cursorY, 1.5f, textLineHeight)
                     .onPress([&state, width, inset, layout](const core::PointerEvent& event, const core::Rect& bounds) {
                         state.lastBounds = bounds;
                         state.cursor = InputModel::clampUtf8Boundary(state.text, layout.cursorFromPointer(event.x, event.y, bounds, width, inset));
@@ -165,18 +162,17 @@ public:
                         } else {
                             InputModel::syncScroll(state, std::max(0.0f, width - inset * 2.0f), fontFamily, fontSize);
                         }
-                    })
-                    .onScroll([&state, allowMultiline, layout, fontSize](const core::ScrollEvent& event) {
-                        if (!allowMultiline || layout.maxVerticalScroll <= 0.0f) {
-                            return;
-                        }
+                    });
+                if (allowMultiline && layout.maxVerticalScroll > 0.0f) {
+                    hit.onScroll([&state, layout, fontSize](const core::ScrollEvent& event) {
                         const float step = std::max(12.0f, fontSize * 2.2f);
                         state.verticalScroll = std::clamp(
                             state.verticalScroll - static_cast<float>(event.y) * step,
                             0.0f,
                             layout.maxVerticalScroll);
-                    })
-                    .onTextInput([&state, allowMultiline, onChange, onEnter, width, inset, fontSize, fontFamily, textHeight](const core::KeyboardEvent& event) {
+                    });
+                }
+                hit.onTextInput([&state, allowMultiline, onChange, onEnter, width, inset, fontSize, fontFamily, textHeight](const core::KeyboardEvent& event) {
                         bool changed = false;
                         const std::string nextComposition = event.composing ? InputModel::filteredText(event.compositionText, allowMultiline) : std::string{};
                         if (state.compositionText != nextComposition) {
@@ -371,7 +367,7 @@ public:
 
                 if (focused) {
                     ui_.rect(id_ + ".cursor")
-                        .position(layout.clampedCursorX(), layout.cursorY)
+                        .position(caretX, layout.cursorY)
                         .size(1.5f, fontSize_ * 1.18f)
                         .color(style_.cursor)
                         .radius(1.0f)

@@ -122,6 +122,10 @@ inline bool Runtime::composeRequested() const {
     return composeRequested_;
 }
 
+inline bool Runtime::paintRequested() const {
+    return paintRequested_;
+}
+
 inline void Runtime::requestFullPaint() {
     fullPaintRequested_ = true;
     paintRequested_ = true;
@@ -174,6 +178,7 @@ inline void Runtime::render(int windowWidth, int windowHeight, float dpiScale, c
         : core::dsl::resolveDirtyRects(dirtyRects_, windowWidth, windowHeight, dpiScale);
     if (!fullPaintRequested_ && dirtyRects.empty()) {
         dirtyRects_.clear();
+        renderBackend->blitRenderCache(windowWidth, windowHeight, core::render::RenderCacheBlitMode::Existing);
         core::render::publishRenderFrameStats();
         return;
     }
@@ -209,8 +214,10 @@ inline void Runtime::render(int windowWidth, int windowHeight, float dpiScale, c
                                    fullPaintRequested_ ? core::render::RenderCacheBlitMode::Full
                                                        : core::render::RenderCacheBlitMode::Dirty,
                                    dirtyRects);
+    const bool retainedLayerRebuilt = stats.retainedLayerRebuilds > 0;
     dirtyRects_.clear();
-    fullPaintRequested_ = false;
+    fullPaintRequested_ = retainedLayerRebuilt;
+    paintRequested_ = retainedLayerRebuilt;
     core::render::publishRenderFrameStats();
 }
 

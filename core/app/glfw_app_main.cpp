@@ -503,11 +503,10 @@ int main() {
         windowState.iconified = glfwGetWindowAttrib(window, GLFW_ICONIFIED) == GLFW_TRUE;
         if (windowState.iconified) {
             renderBackend->releaseRenderCache();
-            windowState.paintRequested = true;
-            app::detail::requestFullPaint();
+            windowState.paintRequested = false;
             windowState.consumeFrameRequest();
             windowState.resetTiming(glfwGetTime());
-            glfwWaitEvents();
+            glfwWaitEventsTimeout(0.25);
             continue;
         }
 
@@ -516,15 +515,6 @@ int main() {
         }
 
         const double currentFrameTime = glfwGetTime();
-
-        if (windowState.modalChildWindow == nullptr && glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
-            if (windowState.trayAvailable) {
-                windowState.hideToTrayRequested = true;
-            } else {
-                glfwSetWindowShouldClose(window, 1);
-                break;
-            }
-        }
 
         int framebufferWidth = 0;
         int framebufferHeight = 0;

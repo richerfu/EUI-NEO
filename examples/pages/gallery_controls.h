@@ -109,8 +109,10 @@ struct GalleryControlsPage {
     const float cardGap = 18.0f;
     const float cardWidth = std::max(72.0f, std::min(204.0f, (width - cardGap * 2.0f) / 3.0f));
     const float rowHeight = 144.0f;
-    const float buttonWidth = std::max(72.0f, std::min(178.0f, (width - 36.0f) / 3.0f));
     const float fieldWidth = std::max(0.0f, std::min(width, 680.0f));
+    const float buttonGap = fieldWidth < 390.0f ? 10.0f : 18.0f;
+    const float buttonWidth = std::max(156.0f, std::min(178.0f, (fieldWidth - buttonGap * 2.0f) / 3.0f));
+    const float buttonRowWidth = buttonWidth * 3.0f + buttonGap * 2.0f;
     const float componentCardWidth = std::max(120.0f, std::min(340.0f, (width - 20.0f) * 0.5f));
     const float feedbackWidth = std::max(112.0f, std::min(176.0f, (fieldWidth - 54.0f) / 4.0f));
     const float dataRowGap = 20.0f;
@@ -137,8 +139,8 @@ struct GalleryControlsPage {
         .build();
 
     ui.row("controls.buttons")
-        .size(fieldWidth, 54.0f)
-        .gap(18.0f)
+        .size(buttonRowWidth, 54.0f)
+        .gap(buttonGap)
         .content([&] {
             components::button(ui, "control.primary")
                 .size(buttonWidth, 54.0f)
@@ -665,6 +667,7 @@ struct GalleryControlsPage {
                 .title("LineChart")
                 .values({0.22f, 0.30f, 0.20f, 0.55f, 0.42f, 0.86f})
                 .labels({"Jan", "Feb", "Mar", "Apr", "May", "Jun"})
+                .style(components::LineStyle::Curve)
                 .transition(pageTransition())
                 .build();
 

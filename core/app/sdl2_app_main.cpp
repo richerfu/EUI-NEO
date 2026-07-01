@@ -223,11 +223,6 @@ void processMainEvent(SDL_Window* window, WindowState& state, const SDL_Event& e
             core::queueKeyInput(window, key, ctrl, shift);
             state.paintRequested = true;
         }
-        if (event.key.keysym.sym == SDLK_ESCAPE && !state.trayAvailable) {
-            state.running = false;
-        } else if (event.key.keysym.sym == SDLK_ESCAPE) {
-            hideToTray(window, state);
-        }
         return;
     }
     if (event.type == SDL_WINDOWEVENT) {
@@ -368,9 +363,6 @@ void processManagedEvent(ManagedWindow& managed, const SDL_Event& event) {
         if (mapKey(event.key.keysym.sym, key)) {
             core::queueKeyInput(managed.window, key, ctrl, shift);
             managed.content.requestPaint();
-        }
-        if (event.key.keysym.sym == SDLK_ESCAPE) {
-            managed.closeRequested = true;
         }
         return;
     }
