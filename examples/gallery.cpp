@@ -457,10 +457,10 @@ void composeContent(eui::Ui& ui, float width, float height) {
 
                             if (showWorkshopLink) {
                                 ui.text("page.title.more")
-                                    .size(moreWidth, 24.0f)
+                                    .size(moreWidth, 28.0f)
                                     .text("more")
-                                    .fontSize(14.0f)
-                                    .lineHeight(18.0f)
+                                    .fontSize(16.0f)
+                                    .lineHeight(20.0f)
                                     .fontWeight(760)
                                     .color(accent())
                                     .horizontalAlign(eui::HorizontalAlign::Left)

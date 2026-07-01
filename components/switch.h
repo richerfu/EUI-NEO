@@ -67,12 +67,14 @@ public:
         const float knobTravel = std::max(0.0f, trackWidth_ - margin * 2.0f - knobSize);
         const float knobX = margin + (checked_ ? knobTravel : 0.0f);
         const float labelX = trackWidth_ + gap_;
-        const float labelWidth = std::max(0.0f, width_ - labelX);
+        const float horizontalInset = 10.0f;
+        const float contentX = horizontalInset;
+        const float labelWidth = std::max(0.0f, width_ - labelX - horizontalInset);
         const float labelLineHeight = fontSize_;
         const float labelY = std::max(0.0f, (height_ - labelLineHeight) * 0.5f);
         const float hitWidth = label_.empty()
-            ? trackWidth_
-            : std::min(width_, labelX + textWidth(label_, fontSize_));
+            ? trackWidth_ + horizontalInset * 2.0f
+            : std::min(width_, labelX + textWidth(label_, fontSize_) + horizontalInset * 2.0f);
         const bool nextChecked = !checked_;
         const std::function<void(bool)> onChange = onChange_;
 
@@ -92,6 +94,7 @@ public:
                     .build();
 
                 ui_.rect(id_ + ".track")
+                    .x(contentX)
                     .y(trackY)
                     .size(trackWidth_, trackHeight_)
                     .color(checked_ ? style_.on : style_.off)
@@ -101,7 +104,7 @@ public:
                     .build();
 
                 ui_.rect(id_ + ".knob")
-                    .x(knobX)
+                    .x(contentX + knobX)
                     .y(trackY + margin)
                     .size(knobSize, knobSize)
                     .color(style_.knob)
@@ -112,7 +115,7 @@ public:
 
                 if (!label_.empty()) {
                     ui_.text(id_ + ".label")
-                        .x(labelX)
+                        .x(contentX + labelX)
                         .y(labelY)
                         .size(labelWidth, labelLineHeight)
                         .text(label_)
