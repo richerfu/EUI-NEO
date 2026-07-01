@@ -178,6 +178,7 @@ inline void Runtime::render(int windowWidth, int windowHeight, float dpiScale, c
         : core::dsl::resolveDirtyRects(dirtyRects_, windowWidth, windowHeight, dpiScale);
     if (!fullPaintRequested_ && dirtyRects.empty()) {
         dirtyRects_.clear();
+        renderBackend->blitRenderCache(windowWidth, windowHeight, core::render::RenderCacheBlitMode::Existing);
         core::render::publishRenderFrameStats();
         return;
     }
