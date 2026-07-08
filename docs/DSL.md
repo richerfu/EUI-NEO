@@ -350,6 +350,16 @@ Image 支持：
 
 默认 fit 是 `Cover`，图片会适应裁剪，不会强行压缩变形。
 
+图片 facade 还提供主题色采样 API，适合让按钮、卡片或控制条跟随当前图片变色：
+
+```cpp
+const eui::Color accent = eui::image::themeColor(
+    "bing://daily?idx=0&mkt=zh-CN",
+    {0.38f, 0.72f, 0.96f, 1.0f});
+```
+
+`themeColor(source, fallback)` 接受本地路径、`http/https` 图片 URL 和 `bing://daily?...` 源。图片未就绪或解码失败时返回 fallback；成功后返回底层缓存的采样主题色。
+
 ## Polygon DSL
 
 ```cpp
