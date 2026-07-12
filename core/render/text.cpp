@@ -14,6 +14,7 @@
 
 #include "core/render/text.h"
 #include "core/render/render_backend.h"
+#include "core/platform/resource_io.h"
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -47,6 +48,7 @@ constexpr FT_Int32 kGlyphLoadFlags = FT_LOAD_DEFAULT | FT_LOAD_COLOR | FT_LOAD_N
 
 struct FontFace {
     std::string path;
+    std::shared_ptr<std::vector<unsigned char>> data;
     FT_Face face = nullptr;
     float size = 16.0f;
     float ascent = 0.0f;
@@ -71,6 +73,7 @@ struct FontFace {
             FT_Done_Face(face);
         }
         path = std::move(other.path);
+        data = std::move(other.data);
         face = other.face;
         size = other.size;
         ascent = other.ascent;
@@ -211,6 +214,11 @@ std::string existingPath(const std::filesystem::path& path) {
     if (std::filesystem::exists(path, error)) {
         return path.string();
     }
+#if defined(__OHOS__)
+    if (!path.is_absolute() && core::platform::resourceExists(path.string())) {
+        return path.string();
+    }
+#endif
     return {};
 }
 
@@ -458,8 +466,19 @@ bool loadFontFace(const std::string& path, float fontSize, FontFace& face) {
     }
 
     FT_Face loadedFace = nullptr;
+    std::shared_ptr<std::vector<unsigned char>> fontData;
     if (FT_New_Face(library, path.c_str(), 0, &loadedFace) != 0 || !loadedFace) {
-        return false;
+        fontData = std::make_shared<std::vector<unsigned char>>();
+        if (!core::platform::readResourceBytes(path, *fontData) ||
+            fontData->size() > static_cast<std::size_t>(std::numeric_limits<FT_Long>::max()) ||
+            FT_New_Memory_Face(library,
+                               reinterpret_cast<const FT_Byte*>(fontData->data()),
+                               static_cast<FT_Long>(fontData->size()),
+                               0,
+                               &loadedFace) != 0 ||
+            !loadedFace) {
+            return false;
+        }
     }
 
     const bool emojiFont = isEmojiFontPath(path);
@@ -508,6 +527,7 @@ bool loadFontFace(const std::string& path, float fontSize, FontFace& face) {
     }
 
     face.path = path;
+    face.data = std::move(fontData);
     face.face = loadedFace;
     face.size = fontSize;
     face.glyphScale = glyphScale;

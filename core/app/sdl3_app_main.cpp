@@ -9,8 +9,10 @@
 #include <mmsystem.h>
 #endif
 
+#if !defined(__OHOS__)
 #ifndef SDL_MAIN_HANDLED
 #define SDL_MAIN_HANDLED
+#endif
 #endif
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
@@ -31,8 +33,10 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <memory>
 #include <thread>
+#include <unordered_map>
 #include <vector>
 
 namespace {
@@ -48,6 +52,19 @@ struct ManagedWindow {
     SDL_Window* parentWindow = nullptr;
     app::DslWindowRuntime content;
     std::unique_ptr<core::render::RenderBackend> renderBackend;
+};
+
+struct TouchScrollState {
+    SDL_FingerID fingerId = 0;
+    double lastX = 0.0;
+    double lastY = 0.0;
+    double totalX = 0.0;
+    double totalY = 0.0;
+    double downTime = 0.0;
+    bool active = false;
+    bool scrolling = false;
+    bool contextQueued = false;
+    bool contextReleaseQueued = false;
 };
 
 struct TimerResolutionGuard {
@@ -102,6 +119,15 @@ float dpiScale(SDL_Window* window) {
         }
     }
 #endif
+#ifdef __OHOS__
+    // EUI examples are authored in desktop-like logical pixels. Match the
+    // Android mobile policy: use the platform density, but cap the effective
+    // UI scale so high-density phones stay readable without becoming sparse.
+    const float density = SDL_GetWindowDisplayScale(window);
+    if (density > 0.0f) {
+        return std::clamp(density, 1.0f, 2.0f);
+    }
+#endif
     return pointerScale(window);
 }
 
@@ -144,6 +170,121 @@ bool mapKey(SDL_Keycode key, core::InputKey& mapped) {
     }
 }
 
+bool isFingerEvent(Uint32 type) {
+#ifdef __OHOS__
+    return type == SDL_EVENT_FINGER_DOWN ||
+        type == SDL_EVENT_FINGER_MOTION ||
+        type == SDL_EVENT_FINGER_UP ||
+        type == SDL_EVENT_FINGER_CANCELED;
+#else
+    (void)type;
+    return false;
+#endif
+}
+
+std::unordered_map<SDL_Window*, TouchScrollState>& touchScrollStates() {
+    static std::unordered_map<SDL_Window*, TouchScrollState> states;
+    return states;
+}
+
+bool fingerWindowPosition(SDL_Window* window, const SDL_TouchFingerEvent& finger, double& x, double& y) {
+    int windowWidth = 0;
+    int windowHeight = 0;
+    SDL_GetWindowSize(window, &windowWidth, &windowHeight);
+    if (windowWidth <= 0 || windowHeight <= 0) {
+        return false;
+    }
+    x = static_cast<double>(finger.x) * static_cast<double>(windowWidth);
+    y = static_cast<double>(finger.y) * static_cast<double>(windowHeight);
+    return true;
+}
+
+void queueFingerInput(SDL_Window* window, const SDL_TouchFingerEvent& finger) {
+    double x = 0.0;
+    double y = 0.0;
+    if (!fingerWindowPosition(window, finger, x, y)) {
+        return;
+    }
+
+    TouchScrollState& state = touchScrollStates()[window];
+    if (finger.type == SDL_EVENT_FINGER_DOWN) {
+        state = {};
+        state.fingerId = finger.fingerID;
+        state.lastX = x;
+        state.lastY = y;
+        state.downTime = core::window::timeSeconds();
+        state.active = true;
+        core::queuePointerInput(window, x, y, true);
+        return;
+    }
+
+    if (!state.active || state.fingerId != finger.fingerID) {
+        state = {};
+        state.fingerId = finger.fingerID;
+        state.lastX = x;
+        state.lastY = y;
+        state.active = finger.type != SDL_EVENT_FINGER_UP && finger.type != SDL_EVENT_FINGER_CANCELED;
+    }
+
+    const double dx = x - state.lastX;
+    const double dy = y - state.lastY;
+    state.lastX = x;
+    state.lastY = y;
+    state.totalX += dx;
+    state.totalY += dy;
+
+    if (finger.type == SDL_EVENT_FINGER_UP || finger.type == SDL_EVENT_FINGER_CANCELED) {
+        core::queuePointerInput(window, x, y, false, false,
+                                finger.type == SDL_EVENT_FINGER_UP && !state.scrolling);
+        touchScrollStates().erase(window);
+        return;
+    }
+
+    constexpr double scrollStartThreshold = 14.0;
+    constexpr double verticalIntentRatio = 1.15;
+    constexpr double logicalScrollStep = 96.0;
+    if (!state.scrolling &&
+        std::fabs(state.totalY) >= scrollStartThreshold &&
+        std::fabs(state.totalY) >= std::fabs(state.totalX) * verticalIntentRatio) {
+        state.scrolling = true;
+    }
+
+    if (state.scrolling) {
+        core::queuePointerInput(window, x, y, false, false, false);
+        if (dy != 0.0) {
+            core::queueScrollInput(window, 0.0, dy / logicalScrollStep);
+        }
+    } else {
+        core::queuePointerInput(window, x, y, true);
+    }
+}
+
+void pollFingerLongPress(SDL_Window* window) {
+    const auto it = touchScrollStates().find(window);
+    if (it == touchScrollStates().end()) {
+        return;
+    }
+    TouchScrollState& state = it->second;
+    if (!state.active || state.scrolling) {
+        return;
+    }
+    if (state.contextReleaseQueued) {
+        core::queuePointerInput(window, state.lastX, state.lastY, false, false, false);
+        state.contextReleaseQueued = false;
+        return;
+    }
+    constexpr double longPressSeconds = 0.58;
+    constexpr double maxMovement = 18.0;
+    if (!state.contextQueued &&
+        core::window::timeSeconds() - state.downTime >= longPressSeconds &&
+        std::fabs(state.totalX) <= maxMovement &&
+        std::fabs(state.totalY) <= maxMovement) {
+        core::queuePointerInput(window, state.lastX, state.lastY, false, true);
+        state.contextQueued = true;
+        state.contextReleaseQueued = true;
+    }
+}
+
 bool isWindowEvent(const SDL_Event& event) {
     return event.type >= SDL_EVENT_WINDOW_FIRST && event.type <= SDL_EVENT_WINDOW_LAST;
 }
@@ -153,7 +294,8 @@ bool isInputEvent(const SDL_Event& event) {
         event.type == SDL_EVENT_KEY_DOWN ||
         event.type == SDL_EVENT_TEXT_INPUT ||
         event.type == SDL_EVENT_TEXT_EDITING ||
-        event.type == SDL_EVENT_MOUSE_WHEEL;
+        event.type == SDL_EVENT_MOUSE_WHEEL ||
+        isFingerEvent(event.type);
 }
 
 SDL_WindowID eventWindowId(const SDL_Event& event) {
@@ -169,6 +311,11 @@ SDL_WindowID eventWindowId(const SDL_Event& event) {
         return event.edit.windowID;
     case SDL_EVENT_MOUSE_WHEEL:
         return event.wheel.windowID;
+    case SDL_EVENT_FINGER_DOWN:
+    case SDL_EVENT_FINGER_MOTION:
+    case SDL_EVENT_FINGER_UP:
+    case SDL_EVENT_FINGER_CANCELED:
+        return event.tfinger.windowID;
     default:
         return 0;
     }
@@ -226,6 +373,13 @@ void requestClose(SDL_Window* window, WindowState& state) {
 void processMainEvent(SDL_Window* window, WindowState& state, const SDL_Event& event, bool inputEnabled) {
     if (event.type == SDL_EVENT_QUIT) {
         requestClose(window, state);
+        return;
+    }
+    if (isFingerEvent(event.type)) {
+        if (inputEnabled) {
+            queueFingerInput(window, event.tfinger);
+            state.paintRequested = true;
+        }
         return;
     }
     if (event.type == SDL_EVENT_TEXT_INPUT) {
@@ -312,7 +466,9 @@ std::unique_ptr<ManagedWindow> createManagedWindow(const app::DslWindowRequest& 
         attachNativeChildWindow(parentWindow, window);
         SDL_RaiseWindow(window);
     }
+#if !defined(__OHOS__)
     SDL_StartTextInput(window);
+#endif
     return managed;
 }
 
@@ -329,6 +485,7 @@ void destroyManagedWindow(std::unique_ptr<ManagedWindow>& managed) {
             managed->renderBackend->releaseRenderCache();
         }
         core::releaseInputQueue(managed->window);
+        touchScrollStates().erase(managed->window);
         if (managed->renderBackend) {
             core::render::ScopedRenderBackend scopedRenderBackend(*managed->renderBackend);
             managed->content.shutdown(false);
@@ -373,6 +530,11 @@ ManagedWindow* findModalWindow(app::DslWindowManager<ManagedWindow>& windows) {
 }
 
 void processManagedEvent(ManagedWindow& managed, const SDL_Event& event) {
+    if (isFingerEvent(event.type)) {
+        queueFingerInput(managed.window, event.tfinger);
+        managed.content.requestPaint();
+        return;
+    }
     if (event.type == SDL_EVENT_TEXT_INPUT) {
         core::queueTextInput(managed.window, event.text.text);
         managed.content.requestPaint();
@@ -441,8 +603,13 @@ bool updateManagedWindow(ManagedWindow& managed, float deltaSeconds, bool update
 
 } // namespace
 
-int main() {
+int main(int, char**) {
     core::platform::repairCurrentWorkingDirectory();
+#ifdef __OHOS__
+    // Consume SDL's standard finger events directly so touch scrolling can be
+    // distinguished from taps without duplicate synthetic mouse input.
+    SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
+#endif
 #ifdef _WIN32
     SDL_SetHint(SDL_HINT_IME_IMPLEMENTED_UI, "composition");
 #endif
@@ -481,7 +648,9 @@ int main() {
         SDL_Quit();
         return -1;
     }
+#if !defined(__OHOS__)
     SDL_StartTextInput(window);
+#endif
 
     WindowState state;
     state.resetTiming(core::window::timeSeconds());
@@ -545,6 +714,7 @@ int main() {
         if (!state.running || state.hiddenToTray) {
             continue;
         }
+        pollFingerLongPress(window);
 
         const double now = core::window::timeSeconds();
 
@@ -585,6 +755,7 @@ int main() {
 
     childWindows.destroyAll(destroyManagedWindow);
     core::releaseInputQueue(window);
+    touchScrollStates().erase(window);
     core::platform::shutdownTray();
     renderBackend->makeCurrent();
     renderBackend->releaseRenderCache();

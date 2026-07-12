@@ -45,9 +45,10 @@ bool loadOpenGLFunctions() {
 #endif
 
 bool platformRequiresConservativeBackbufferSync() {
-#if defined(__linux__)
-    // Linux OpenGL drivers/window systems may not preserve post-swap backbuffer contents.
-    // Use full cache blits there instead of assuming previous backbuffer pixels are valid.
+#if defined(__linux__) || defined(__OHOS__)
+    // These EGL/window-system paths may not preserve post-swap backbuffer
+    // contents or expose the actual swapchain image count. Always restore the
+    // complete backbuffer from EUI's render cache before presenting.
     return true;
 #else
     return false;

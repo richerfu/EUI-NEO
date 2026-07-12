@@ -1,4 +1,5 @@
 #include "core/render/opengl/opengl_backend.h"
+#include "core/render/opengl/opengl_shader_preamble.h"
 
 #include "core/render/render_types.h"
 
@@ -287,7 +288,7 @@ bool OpenGLRenderBackend::ensureImageResources() {
     }
 
     const char* vertexSource =
-        "#version 330 core\n"
+        EUI_OPENGL_VERTEX_PREAMBLE
         "layout(location = 0) in vec3 aScreenPos;\n"
         "layout(location = 1) in vec2 aLocalPos;\n"
         "layout(location = 2) in vec2 aUV;\n"
@@ -303,7 +304,7 @@ bool OpenGLRenderBackend::ensureImageResources() {
         "}\n";
 
     const char* fragmentSource =
-        "#version 330 core\n"
+        EUI_OPENGL_FRAGMENT_PREAMBLE
         "in vec2 vLocalPos;\n"
         "in vec2 vUV;\n"
         "out vec4 FragColor;\n"

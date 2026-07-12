@@ -416,6 +416,7 @@ private:
     core::window::Handle imeCursorWindow_ = nullptr;
     Rect imeCursorRect_;
     bool imeCursorRectValid_ = false;
+    bool textInputActive_ = false;
 };
 
 } // namespace core::dsl

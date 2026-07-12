@@ -151,6 +151,7 @@ set(CORE_SOURCES
     core/platform/native_bridge.c
     core/platform/performance_stats.cpp
     core/platform/platform.cpp
+    core/platform/resource_io.cpp
     core/render/image.cpp
     core/render/image_facade.cpp
     core/render/image_source.cpp

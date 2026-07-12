@@ -1,0 +1,7 @@
+{
+  "string": [
+    { "name": "module_desc", "value": "EUI-NEO SDL3 OpenHarmony application" },
+    { "name": "EntryAbility_desc", "value": "EUI-NEO entry ability" },
+    { "name": "EntryAbility_label", "value": "EUI-NEO" }
+  ]
+}

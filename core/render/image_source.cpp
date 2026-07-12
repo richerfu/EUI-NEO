@@ -2,6 +2,7 @@
 
 #include "core/platform/async.h"
 #include "core/platform/network.h"
+#include "core/platform/resource_io.h"
 
 #include "3rd/stb_image.h"
 
@@ -38,6 +39,7 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <limits>
 #include <mutex>
 #include <sstream>
 #include <unordered_map>
@@ -69,14 +71,12 @@ bool hasGifExtension(const std::string& path) {
 }
 
 bool looksLikeSvgFile(const std::string& path) {
-    std::ifstream input(path, std::ios::binary);
-    if (!input.good()) {
+    std::vector<unsigned char> bytes;
+    if (!core::platform::readResourceBytes(path, bytes)) {
         return false;
     }
-
-    char buffer[512] = {};
-    input.read(buffer, sizeof(buffer) - 1);
-    std::string head(buffer, static_cast<std::size_t>(input.gcount()));
+    const std::size_t length = std::min<std::size_t>(bytes.size(), 511);
+    std::string head(reinterpret_cast<const char*>(bytes.data()), length);
     head = lowerCopy(head);
     const std::size_t first = head.find_first_not_of(" \t\r\n");
     if (first == std::string::npos) {
@@ -87,16 +87,12 @@ bool looksLikeSvgFile(const std::string& path) {
 }
 
 bool looksLikeGifFile(const std::string& path) {
-    std::ifstream input(path, std::ios::binary);
-    if (!input.good()) {
+    std::vector<unsigned char> bytes;
+    if (!core::platform::readResourceBytes(path, bytes) || bytes.size() < 6) {
         return false;
     }
-    char buffer[6] = {};
-    input.read(buffer, sizeof(buffer));
-    if (input.gcount() != static_cast<std::streamsize>(sizeof(buffer))) {
-        return false;
-    }
-    return std::string(buffer, sizeof(buffer)) == "GIF87a" || std::string(buffer, sizeof(buffer)) == "GIF89a";
+    const std::string signature(reinterpret_cast<const char*>(bytes.data()), 6);
+    return signature == "GIF87a" || signature == "GIF89a";
 }
 
 std::filesystem::path executableDirectory() {
@@ -405,7 +401,12 @@ std::string resolveLocalImagePath(const std::string& source) {
     candidates.emplace_back(sourceRoot / "assets" / raw.filename());
 
     for (const auto& candidate : candidates) {
-        if (std::filesystem::exists(candidate, error) && !error) {
+        if (core::platform::resourceExists(candidate.string())) {
+#if defined(__OHOS__)
+            if (!candidate.is_absolute() && !std::filesystem::exists(candidate, error)) {
+                return candidate.string();
+            }
+#endif
             return std::filesystem::absolute(candidate, error).string();
         }
         error.clear();
@@ -491,34 +492,16 @@ bool rasterizeSvgFile(const std::string& path,
                       std::vector<unsigned char>& pixels,
                       int& width,
                       int& height) {
-    std::ifstream file(path, std::ios::binary);
-    if (!file.good()) {
+    std::vector<unsigned char> bytes;
+    if (!core::platform::readResourceBytes(path, bytes)) {
         return false;
     }
-    std::stringstream buffer;
-    buffer << file.rdbuf();
-    return rasterizeSvgString(buffer.str(), targetWidth, targetHeight, flipVertically, pixels, width, height);
+    return rasterizeSvgString(std::string(reinterpret_cast<const char*>(bytes.data()), bytes.size()),
+                              targetWidth, targetHeight, flipVertically, pixels, width, height);
 }
 
 bool readBinaryFile(const std::string& path, std::vector<unsigned char>& bytes) {
-    bytes.clear();
-    std::ifstream file(path, std::ios::binary);
-    if (!file.good()) {
-        return false;
-    }
-    file.seekg(0, std::ios::end);
-    const std::streamoff size = file.tellg();
-    if (size <= 0) {
-        return false;
-    }
-    file.seekg(0, std::ios::beg);
-    bytes.resize(static_cast<std::size_t>(size));
-    file.read(reinterpret_cast<char*>(bytes.data()), size);
-    if (!file.good() && !file.eof()) {
-        bytes.clear();
-        return false;
-    }
-    return true;
+    return core::platform::readResourceBytes(path, bytes);
 }
 
 } // namespace
@@ -585,7 +568,13 @@ std::shared_ptr<const StaticImageData> loadStaticImageFromPath(const std::string
         pixels = svgPixels.data();
     } else {
         stbi_set_flip_vertically_on_load(flipVertically ? 1 : 0);
-        pixels = stbi_load(resolvedPath.c_str(), &width, &height, &channels, STBI_rgb_alpha);
+        std::vector<unsigned char> bytes;
+        if (!readBinaryFile(resolvedPath, bytes) ||
+            bytes.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+            return {};
+        }
+        pixels = stbi_load_from_memory(bytes.data(), static_cast<int>(bytes.size()),
+                                       &width, &height, &channels, STBI_rgb_alpha);
         if (pixels == nullptr || width <= 0 || height <= 0) {
             if (pixels != nullptr) {
                 stbi_image_free(pixels);

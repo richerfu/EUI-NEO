@@ -286,20 +286,32 @@ inline void Runtime::updateTextInput(const KeyboardEvent& event) {
 }
 
 inline void Runtime::updateImeCursorRect(core::window::Handle window, float dpiScale) {
+    const auto setTextInputActive = [&](bool active) {
+        if (textInputActive_ == active) {
+            return;
+        }
+        textInputActive_ = active;
+        core::platform::setTextInputActive(window, active);
+    };
     if (window == nullptr) {
+        textInputActive_ = false;
         imeCursorRectValid_ = false;
         return;
     }
     if (focusedId_.empty()) {
+        setTextInputActive(false);
         imeCursorRectValid_ = false;
         return;
     }
 
     const Element* element = ui_.find(focusedId_);
     if (element == nullptr || isElementInDisabledTree(focusedId_) || !element->hasImeRect) {
+        setTextInputActive(false);
         imeCursorRectValid_ = false;
         return;
     }
+
+    setTextInputActive(true);
 
     const Rect logicalRect{
         element->frame.x + element->imeRect.x,

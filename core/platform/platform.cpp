@@ -5,14 +5,22 @@
 
 #include <algorithm>
 #include <atomic>
+#include <condition_variable>
 #include <cstdio>
 #include <cstdlib>
 #include <cstdint>
 #include <filesystem>
 #include <sstream>
 #include <string>
+#include <mutex>
 #include <utility>
 #include <vector>
+
+#if defined(EUI_WINDOW_BACKEND_SDL3)
+#include <SDL3/SDL.h>
+#elif defined(EUI_WINDOW_BACKEND_SDL2)
+#include <SDL.h>
+#endif
 
 #if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
@@ -227,6 +235,38 @@ FileDialogResult failedFileDialog(std::string error) {
     result.error = std::move(error);
     return result;
 }
+
+#if defined(__OHOS__)
+struct OhosFileDialogState {
+    std::mutex mutex;
+    std::condition_variable completed;
+    FileDialogResult result;
+    bool done = false;
+};
+
+void SDLCALL onOhosFileDialog(void* userdata, const char* const* filelist, int) {
+    auto* state = static_cast<OhosFileDialogState*>(userdata);
+    FileDialogResult result;
+    if (filelist == nullptr) {
+        result = failedFileDialog(SDL_GetError());
+    } else if (filelist[0] == nullptr) {
+        result = cancelledFileDialog();
+    } else {
+        std::vector<std::string> paths;
+        for (std::size_t i = 0; filelist[i] != nullptr; ++i) {
+            paths.emplace_back(filelist[i]);
+        }
+        result = selectedFiles(std::move(paths));
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(state->mutex);
+        state->result = std::move(result);
+        state->done = true;
+    }
+    state->completed.notify_one();
+}
+#endif
 
 std::string trimTrailingWhitespace(std::string value) {
     while (!value.empty() && (value.back() == '\n' || value.back() == '\r' || value.back() == ' ' || value.back() == '\t')) {
@@ -595,7 +635,9 @@ bool openUrl(const std::string& url) {
         return false;
     }
 
-#if defined(_WIN32)
+#if defined(__OHOS__)
+    return SDL_OpenURL(url.c_str());
+#elif defined(_WIN32)
     HINSTANCE result = ShellExecuteA(nullptr, "open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
     return reinterpret_cast<std::intptr_t>(result) > 32;
 #elif defined(__APPLE__)
@@ -609,7 +651,22 @@ bool openUrl(const std::string& url) {
 
 FileDialogResult openFileDialog(const FileDialogOptions& options) {
     const std::vector<std::string> names = extensionNames(options.allowedExtensions);
-#if defined(_WIN32)
+#if defined(__OHOS__)
+    std::string filterName = fileFilterName(options);
+    std::string filterPattern = names.empty() ? "*" : joinExtensions(names, ";");
+    SDL_DialogFileFilter filter { filterName.c_str(), filterPattern.c_str() };
+    OhosFileDialogState state;
+    SDL_ShowOpenFileDialog(onOhosFileDialog,
+                           &state,
+                           nullptr,
+                           &filter,
+                           1,
+                           options.initialDirectory.empty() ? nullptr : options.initialDirectory.c_str(),
+                           options.allowMultiple);
+    std::unique_lock<std::mutex> lock(state.mutex);
+    state.completed.wait(lock, [&state] { return state.done; });
+    return std::move(state.result);
+#elif defined(_WIN32)
     std::vector<wchar_t> buffer(65536, L'\0');
     const std::wstring title = utf8ToWide(options.prompt.empty() ? "Select file" : options.prompt);
     const std::wstring initialDirectory = utf8ToWide(options.initialDirectory);
@@ -716,6 +773,29 @@ void shutdownTray() {
         eui_tray_shutdown();
     }
     state = {};
+}
+
+void setTextInputActive(window::Handle window, bool active) {
+#if defined(EUI_WINDOW_BACKEND_SDL3)
+    SDL_Window* sdlWindow = static_cast<SDL_Window*>(window);
+    const bool currentlyActive = SDL_TextInputActive(sdlWindow);
+    if (active && !currentlyActive) {
+        SDL_StartTextInput(sdlWindow);
+    } else if (!active && currentlyActive) {
+        SDL_StopTextInput(sdlWindow);
+    }
+#elif defined(EUI_WINDOW_BACKEND_SDL2)
+    (void)window;
+    const bool currentlyActive = SDL_IsTextInputActive() == SDL_TRUE;
+    if (active && !currentlyActive) {
+        SDL_StartTextInput();
+    } else if (!active && currentlyActive) {
+        SDL_StopTextInput();
+    }
+#else
+    (void)window;
+    (void)active;
+#endif
 }
 
 void setImeCursorRect(window::Handle window, float x, float y, float width, float height) {

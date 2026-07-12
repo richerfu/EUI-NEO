@@ -1,4 +1,5 @@
 #include "core/render/opengl/opengl_backend.h"
+#include "core/render/opengl/opengl_shader_preamble.h"
 
 #include "core/window/window_backend.h"
 
@@ -83,7 +84,7 @@ bool ensureTextRenderResources(TextRenderResources& resources) {
     }
 
     const char* vertexSource =
-        "#version 330 core\n"
+        EUI_OPENGL_VERTEX_PREAMBLE
         "layout(location = 0) in vec2 aPos;\n"
         "layout(location = 1) in vec2 aUv;\n"
         "layout(location = 2) in float aColored;\n"
@@ -99,7 +100,7 @@ bool ensureTextRenderResources(TextRenderResources& resources) {
         "}\n";
 
     const char* fragmentSource =
-        "#version 330 core\n"
+        EUI_OPENGL_FRAGMENT_PREAMBLE
         "in vec2 vUv;\n"
         "in float vColored;\n"
         "out vec4 FragColor;\n"

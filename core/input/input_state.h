@@ -49,6 +49,12 @@ struct PointerState {
     double lastY = 0.0;
     bool lastDown = false;
     bool lastRightDown = false;
+    bool hasQueuedPointer = false;
+    double queuedX = 0.0;
+    double queuedY = 0.0;
+    bool queuedDown = false;
+    bool queuedRightDown = false;
+    bool queuedTap = false;
 };
 
 inline std::unordered_map<window::Handle, InputQueue>& inputQueues() {
@@ -190,6 +196,23 @@ inline void queueKeyInput(window::Handle window, InputKey key, bool ctrl = false
     }
 }
 
+inline void queuePointerInput(window::Handle window,
+                              double x,
+                              double y,
+                              bool down,
+                              bool rightDown = false,
+                              bool clickIfCoalesced = true) {
+    detail::PointerState& state = detail::pointerState(window);
+    if (clickIfCoalesced && state.hasQueuedPointer && state.queuedDown && !down && !state.lastDown) {
+        state.queuedTap = true;
+    }
+    state.hasQueuedPointer = true;
+    state.queuedX = x;
+    state.queuedY = y;
+    state.queuedDown = down;
+    state.queuedRightDown = rightDown;
+}
+
 inline void installInputCallbacks(window::Handle window) {
     if (!window) {
         return;
@@ -308,15 +331,27 @@ inline bool hasPendingPointerInput(window::Handle window, float dpiScale = 1.0f)
 
     double x = 0.0;
     double y = 0.0;
-    core::window::getCursorPosition(window, x, y);
-    x *= dpiScale;
-    y *= dpiScale;
+    bool down = false;
+    bool rightDown = false;
+    if (stateIt->second.hasQueuedPointer) {
+        x = stateIt->second.queuedX * dpiScale;
+        y = stateIt->second.queuedY * dpiScale;
+        down = stateIt->second.queuedDown;
+        rightDown = stateIt->second.queuedRightDown;
+    } else {
+        core::window::getCursorPosition(window, x, y);
+        x *= dpiScale;
+        y *= dpiScale;
+        down = core::window::isMouseButtonDown(window, 0);
+        rightDown = core::window::isMouseButtonDown(window, 1);
+    }
 
     const detail::PointerState& state = stateIt->second;
     return x != state.lastX ||
            y != state.lastY ||
-           core::window::isMouseButtonDown(window, 0) != state.lastDown ||
-           core::window::isMouseButtonDown(window, 1) != state.lastRightDown;
+           down != state.lastDown ||
+           rightDown != state.lastRightDown ||
+           state.queuedTap;
 }
 
 inline void releaseInputQueue(window::Handle window) {
@@ -336,26 +371,45 @@ inline PointerEvent readPointerEvent(window::Handle window, float dpiScale = 1.0
 
     double x = 0.0;
     double y = 0.0;
-    core::window::getCursorPosition(window, x, y);
-    x *= dpiScale;
-    y *= dpiScale;
+    bool down = false;
+    bool rightDown = false;
+    if (state.hasQueuedPointer) {
+        x = state.queuedX * dpiScale;
+        y = state.queuedY * dpiScale;
+        down = state.queuedDown;
+        rightDown = state.queuedRightDown;
+    } else {
+        core::window::getCursorPosition(window, x, y);
+        x *= dpiScale;
+        y *= dpiScale;
+        down = core::window::isMouseButtonDown(window, 0);
+        rightDown = core::window::isMouseButtonDown(window, 1);
+    }
 
     PointerEvent event;
     event.x = x;
     event.y = y;
     event.deltaX = x - state.lastX;
     event.deltaY = y - state.lastY;
-    event.down = core::window::isMouseButtonDown(window, 0);
-    event.rightDown = core::window::isMouseButtonDown(window, 1);
+    event.down = down;
+    event.rightDown = rightDown;
     event.pressedThisFrame = event.down && !state.lastDown;
     event.releasedThisFrame = !event.down && state.lastDown;
     event.rightPressedThisFrame = event.rightDown && !state.lastRightDown;
     event.rightReleasedThisFrame = !event.rightDown && state.lastRightDown;
+    if (state.queuedTap) {
+        event.pressedThisFrame = true;
+        event.releasedThisFrame = true;
+        state.queuedTap = false;
+    }
 
     state.lastX = x;
     state.lastY = y;
     state.lastDown = event.down;
     state.lastRightDown = event.rightDown;
+    if (state.hasQueuedPointer && !state.queuedDown && !state.queuedRightDown && !state.queuedTap) {
+        state.hasQueuedPointer = false;
+    }
     return event;
 }
 
